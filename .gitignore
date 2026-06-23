@@ -1,0 +1,10 @@
+# huge intraday data — not needed for the daily live signal (regenerate locally)
+data/intraday/
+data/intraday_1m.npz
+data/btc_daily_api_backup.csv
+m1m5_ref/
+__pycache__/
+*.pyc
+.env
+# CI refreshes these
+out/widened_search.log

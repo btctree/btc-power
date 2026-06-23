@@ -1,0 +1,1 @@
+{"robust": {"BULL_TREND|1": [0.0, 1], "BULL_PULLBACK|1": [0.75, 1], "CHOP_HIGHVOL|1": [0.5, 3], "BEAR_TREND|1": [0.5, 2], "BEAR_BOUNCE|1": [1.0, 1], "CHOP_HIGHVOL|-1": [1.0, 2], "BEAR_TREND|-1": [0.0, 2], "BULL_PULLBACK|-1": [1.0, 1], "BEAR_BOUNCE|-1": [0.5, 3]}}

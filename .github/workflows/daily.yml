@@ -1,0 +1,51 @@
+name: BTC Daily Signal
+
+on:
+  schedule:
+    - cron: "5 1 * * *"        # 01:05 UTC daily, just after the daily candle closes
+  workflow_dispatch:           # allow manual run from the Actions tab
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: btc-signal
+  cancel-in-progress: true
+
+jobs:
+  build-and-notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - name: Refresh data + generate signal + dashboard
+        working-directory: src
+        run: |
+          python fetch_data.py
+          python production_engine.py
+          python build_mobile_dashboard.py
+      - name: Send Telegram daily update
+        working-directory: src
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DASHBOARD_URL: ${{ vars.DASHBOARD_URL }}
+        run: python telegram_signal.py
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: out
+
+  deploy-pages:
+    needs: build-and-notify
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

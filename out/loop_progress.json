@@ -1,0 +1,45 @@
+{
+  "loop": "intraday regime-switching, $500 -> $80M target",
+  "iteration": 2,
+  "status": "CONVERGED — all 4 roles approve the system; $80M target unanimously rejected as infeasible",
+  "iteration2_validations": {
+    "confidence_index": "VALIDATED — High bucket +3.16%/trade vs Med +1.10% (monotonic). BEAR_BOUNCE over-rated.",
+    "signal_exit": "ESSENTIAL — removing it drops Sharpe 1.30->0.76; keep it.",
+    "dd_killswitch": "ON (25%) — cuts maxDD ~5pts at small return cost",
+    "sizing_margin": "VALIDATED via frontier — 0-liq to ~5x, ruin beyond ~8x"
+  },
+  "final_tiers_0liq": {
+    "CONSERVATIVE":{"final":8619,"cagr":0.38,"sharpe":1.26,"maxdd":-0.331,"calmar":1.15,"wf":[1.38,1.13]},
+    "BALANCED":{"final":18255,"cagr":0.502,"sharpe":1.20,"maxdd":-0.386,"calmar":1.30,"wf":[1.31,1.08]},
+    "AGGRESSIVE":{"final":71504,"cagr":0.753,"sharpe":1.22,"maxdd":-0.502,"calmar":1.50,"wf":[1.25,1.19]}
+  },
+  "feasibility": {
+    "target": "$500 -> $80,000,000 in 10y",
+    "required_cagr": 2.314,
+    "note": "231% CAGR/yr sustained; even 100%/yr only reaches $512k in 10y"
+  },
+  "regime_segmentation": ["BULL_TREND","BULL_PULLBACK","RANGE_LOWVOL","CHOP_HIGHVOL","BEAR_TREND","BEAR_BOUNCE","NEUTRAL"],
+  "regime_strategy_map": {
+    "BULL_TREND":"MACD/EMA (Sharpe~2.47)","BULL_PULLBACK":"DSAM/RSI (~2.5)",
+    "RANGE_LOWVOL":"STAND ASIDE (no edge, best 0.19)","CHOP_HIGHVOL":"MACD_SIG (2.25) else aside",
+    "BEAR_TREND":"OBV (1.44) else aside","BEAR_BOUNCE":"MFI (1.31)"
+  },
+  "leverage_frontier_0liq": [
+    {"cfg":"1x unlev","final":2713,"cagr":0.211,"sharpe":1.27,"maxdd":-0.159,"calmar":1.33,"liq":0,"proj10y":3388},
+    {"cfg":"2/1.5/1","final":10566,"cagr":0.412,"sharpe":1.29,"maxdd":-0.306,"calmar":1.35,"liq":0,"proj10y":15778},
+    {"cfg":"3/2/1 base","final":34681,"cagr":0.616,"sharpe":1.30,"maxdd":-0.438,"calmar":1.40,"liq":0,"proj10y":60545},
+    {"cfg":"5/3/1","final":223619,"cagr":0.995,"sharpe":1.30,"maxdd":-0.649,"calmar":1.53,"liq":0,"proj10y":498741},
+    {"cfg":"5/3/2 max-0liq","final":446284,"cagr":1.157,"sharpe":1.30,"maxdd":-0.730,"calmar":1.58,"liq":0,"proj10y":1089986},
+    {"cfg":"8/5/2","final":424716,"cagr":1.145,"sharpe":1.23,"maxdd":-0.941,"calmar":1.22,"liq":4,"proj10y":1030577},
+    {"cfg":"10/6/3","final":1476,"maxdd":-1.0,"liq":5,"note":"ruined"},
+    {"cfg":"20/10/5","final":0,"liq":1,"note":"wiped out"}
+  ],
+  "verdict_80M": "INFEASIBLE under no-liquidation. Max 0-liq edge ~116% CAGR -> ~$1M in 10y, 73x short of $80M, at brutal -73% DD. >=8x brings liquidation -> ruin.",
+  "next_iteration_agenda": [
+    "Validate confidence index as its own loop (step 5): does higher conf -> higher realized edge?",
+    "Validate sizing (step 6) and margin (step 7) as separate loops with re-do on rejection",
+    "Cut turnover/funding drag (340 signal-exits, $8.6k fees, $4k funding)",
+    "Pick role-agreed operating point given 80M is infeasible; revise target",
+    "Build dashboard for the new system; reach 4-role convergence"
+  ]
+}
