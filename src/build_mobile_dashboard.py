@@ -7,7 +7,7 @@ D = json.load(open(os.path.join(OUT, "results_production.json")))
 DATA = json.dumps(D)
 
 MANIFEST = {
-    "name": "BTC Signal", "short_name": "BTC Signal", "display": "standalone",
+    "name": "BTC Power Signal", "short_name": "BTC Power", "display": "standalone",
     "background_color": "#0b0e14", "theme_color": "#0b0e14", "start_url": "./index.html",
     "icons": [{"src": "icon.png", "sizes": "512x512", "type": "image/png"}],
 }
@@ -19,10 +19,10 @@ HTML = r"""<!doctype html><html lang="en"><head>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="BTC Signal">
+<meta name="apple-mobile-web-app-title" content="BTC Power">
 <meta name="theme-color" content="#0b0e14">
 <link rel="manifest" href="manifest.webmanifest">
-<title>BTC Signal</title>
+<title>BTC Power Signal</title>
 <style>
 :root{--bg:#0b0e14;--card:#161b26;--ink:#e8edf4;--mut:#8b98a9;--grn:#2bd576;--red:#ff5d5d;--amb:#ffb84d;--blu:#4da3ff;--line:#242c3a;
 --safe-t:env(safe-area-inset-top);--safe-b:env(safe-area-inset-bottom)}
@@ -59,7 +59,7 @@ background:#10141ccc;backdrop-filter:blur(14px);border-top:1px solid var(--line)
 .lvl .k{font-size:11px}.lvl .v{font-size:15px}
 </style></head><body><div class="app">
 <header>
-  <div class="brand">BTC • <span id="asof"></span></div>
+  <div class="brand">⚡ BTC POWER • <span id="asof"></span></div>
   <div class="px">$<span id="px"></span><small id="rsi"></small></div>
   <div class="sigchip" id="chip"></div>
 </header>

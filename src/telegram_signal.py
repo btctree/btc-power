@@ -35,7 +35,7 @@ def fmt(d):
     core = P.get("CORE_1x_2017", {})
     url = os.environ.get("DASHBOARD_URL", "")
     lines = [
-        f"<b>₿ BTC Daily Signal — {d['as_of']}</b>",
+        f"<b>⚡ BTC POWER SIGNAL — {d['as_of']}</b>",
         f"Price <b>${d['price']:,.0f}</b>  ·  RSI {L['rsi']}",
         f"{dir_emoji} <b>{L['action']}</b>",
         "",
