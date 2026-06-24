@@ -1,21 +1,21 @@
-name: BTC Daily Signal
+name: BTC Power Signal
 
 on:
   schedule:
-    - cron: "5 1 * * *"        # 01:05 UTC daily, just after the daily candle closes
-  workflow_dispatch:           # allow manual run from the Actions tab
+    - cron: "0 * * * *"        # hourly: daily entry decision + intraday trailing-stop watch
+  workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write              # to persist state.json
   pages: write
   id-token: write
 
 concurrency:
-  group: btc-signal
-  cancel-in-progress: true
+  group: btc-power
+  cancel-in-progress: false
 
 jobs:
-  build-and-notify:
+  signal:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,25 +23,32 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install -r requirements.txt
-      - name: Refresh data + generate signal + dashboard
+      - name: Refresh data + signal + dashboard
         working-directory: src
         run: |
           python fetch_data.py
-          python production_engine.py
-          python build_mobile_dashboard.py
-      - name: Send Telegram daily update
+          python live_engine.py
+          python build_live_dashboard.py
+      - name: Telegram watch (entry / exit / stop / daily report)
         working-directory: src
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           DASHBOARD_URL: ${{ vars.DASHBOARD_URL }}
-        run: python telegram_signal.py
+        run: python telegram_signal.py --mode watch
+      - name: Persist position state
+        run: |
+          git config user.name "btc-power-bot"
+          git config user.email "btc-power-bot@users.noreply.github.com"
+          git add state.json || true
+          git commit -m "update position state [skip ci]" || echo "no state change"
+          git push || echo "nothing to push"
       - uses: actions/upload-pages-artifact@v3
         with:
           path: out
 
   deploy-pages:
-    needs: build-and-notify
+    needs: signal
     runs-on: ubuntu-latest
     environment:
       name: github-pages
