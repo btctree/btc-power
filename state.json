@@ -1,10 +1,11 @@
 {
   "in_position": false,
-  "direction": null,
-  "entry": null,
+  "direction": "SHORT",
+  "entry": 59927.78,
   "stop": null,
   "hi": null,
   "lo": null,
   "entry_date": null,
-  "last_report_date": "2026-06-25"
+  "last_report_date": "2026-06-25",
+  "cutloss": 70239.69
 }
