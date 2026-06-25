@@ -98,7 +98,9 @@ canvas{width:100%;height:300px;display:block;border-radius:10px;touch-action:non
 </div>
 
 <div class="pane" id="p-trades">
-  <div class="card"><div class="h">Recent 20 completed trades</div><div id="tradelist"></div></div>
+  <div class="card"><div class="h">8B model — recent 20 actions (entry → exit)</div>
+    <div class="note" style="margin:0 0 8px">Each = a position the 8B model held until its direction changed. Return shown is the 1× price move; the 8B trades it at 5×.</div>
+    <div id="tradelist"></div></div>
 </div>
 </div>
 <nav class="tabbar">
@@ -165,6 +167,8 @@ function draw(){const cv=$('chart');if(!cv.clientWidth)return;const dpr=window.d
  else{for(let g=0;g<=4;g++){const v=lo+(hi-lo)*g/4,y=py(v);x.beginPath();x.moveTo(PL,y);x.lineTo(W-PR,y);x.stroke();x.fillText('$'+f0(v),3,y-2);}}
  x.fillStyle='#6b7787';[a,Math.floor((a+b)/2),b].forEach(i=>x.fillText((D.dates[i]||'').slice(0,7),Math.min(W-40,Math.max(PL,px(i)-16)),H-4));
  x.strokeStyle='#2bd576';x.lineWidth=1.8;x.beginPath();let st=false;for(let i=a;i<=b;i++){const v=eq[i];if(v<=0)continue;i&&st?x.lineTo(px(i),py(v)):x.moveTo(px(i),py(v));st=true;}x.stroke();
+ // 8B action markers (green ▲ = long entry, red ▼ = short entry)
+ if(D.trade_markers){D.trade_markers.forEach(mk=>{const ix=mk.i;if(ix<a||ix>b)return;const v=eq[ix];if(v<=0)return;const X=px(ix),Y=py(v);x.fillStyle=mk.d>0?'#2bd576':'#ff5d5d';x.beginPath();if(mk.d>0){x.moveTo(X,Y-7);x.lineTo(X-4,Y-1);x.lineTo(X+4,Y-1);}else{x.moveTo(X,Y+7);x.lineTo(X-4,Y+1);x.lineTo(X+4,Y+1);}x.closePath();x.fill();});}
  // hover tooltip
  if(hover!=null&&hover>=a&&hover<=b){const X=px(hover),v=eq[hover];x.strokeStyle='#4da3ff';x.lineWidth=1;x.setLineDash([4,3]);x.beginPath();x.moveTo(X,PT);x.lineTo(X,H-PB);x.stroke();x.setLineDash([]);
   if(v>0){x.fillStyle='#4da3ff';x.beginPath();x.arc(X,py(v),3.5,0,7);x.fill();}

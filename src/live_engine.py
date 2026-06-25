@@ -151,6 +151,31 @@ def gen_trades(i0, n):
     return trades
 
 
+def ensemble_trades(df, expf, reg, emap, i0=260):
+    """Derive the 8B model's actual ACTIONS: each spell of constant exposure-direction
+    (conviction-filtered) is one trade — entry when direction opens/flips, exit when it
+    flips or goes flat. Returns trades + chart entry markers."""
+    close = df["close"].to_numpy(); dates = df["Date"].tolist(); n = len(df)
+    trades = []; markers = []; i = i0
+    while i < n:
+        s = 1 if expf[i] > 0 else (-1 if expf[i] < 0 else 0)
+        if s == 0:
+            i += 1; continue
+        j = i
+        while j + 1 < n and ((1 if expf[j + 1] > 0 else (-1 if expf[j + 1] < 0 else 0)) == s):
+            j += 1
+        entry = float(close[i]); exit_ = float(close[j]); ret = (exit_ / entry - 1.0) * s
+        nxt = (1 if (j + 1 < n and expf[j + 1] > 0) else (-1 if (j + 1 < n and expf[j + 1] < 0) else 0))
+        reason = "flipped to " + ("LONG" if nxt > 0 else "SHORT") if nxt != 0 and nxt != s else "went flat / regime change"
+        trades.append(dict(entry_dt=dates[i], exit_dt=dates[j], market=reg[i],
+                           strategy=", ".join(emap.get(reg[i]) or []) or "—",
+                           direction="LONG" if s > 0 else "SHORT", entry=round(entry, 2),
+                           exit=round(exit_, 2), ret=round(ret, 4), reason=reason))
+        markers.append({"i": i - i0, "d": s})
+        i = j + 1
+    return trades, markers
+
+
 def metrics(eq):
     eq = np.asarray(eq, float)
     if eq[-1] <= 0:
@@ -184,16 +209,12 @@ def main():
     chart_dates = dates[i0:n]
     chart_close = [round(float(x), 2) for x in df["close"].to_numpy()[i0:n]]
 
-    # recent-20 trades (daily-fidelity; CI-safe, no .npz needed)
-    trs = gen_trades(i0, n)
-    recent = []
-    for t in trs[-20:][::-1]:
-        recent.append(dict(entry_dt=t["entry_dt"], exit_dt=t["exit_dt"], market=t["market"],
-                           strategy=t["strategy"], direction=t["direction"], conf=t["confidence"],
-                           entry=round(float(t["entry"]), 2), exit=round(float(t["exit"]), 2),
-                           ret=round(float(t["ret"]), 4), cutloss=round(float(t["cutloss_lvl"]), 2),
-                           pnl_nolev=round(float(t["pnl_nm"]), 2), pnl_lev=round(float(t["pnl_wm"]), 2),
-                           reason=t["reason"], exit_date=t["exit_dt"][:10]))
+    # 8B MODEL trades (the deployed model's actual actions) + chart markers
+    all8b, markers = ensemble_trades(df, expf, reg2, emap2, i0)
+    recent = [dict(entry_dt=t["entry_dt"], exit_dt=t["exit_dt"], market=t["market"],
+                   strategy=t["strategy"], direction=t["direction"],
+                   entry=t["entry"], exit=t["exit"], ret=t["ret"], reason=t["reason"],
+                   exit_date=t["exit_dt"]) for t in all8b[-20:][::-1]]
 
     # both signals from the SAME ensemble (CORE 1x + 8B 5x) -> always agree on direction
     M = compute_models(df, memb, ctx=(reg2, emap2, exp_raw))
@@ -215,6 +236,7 @@ def main():
         levels=dict(price=round(price, 2), sma20=round(s20, 2), sma50=round(s50, 2), sma200=round(s200, 2),
                     bb_upper=round(bbu, 2), bb_lower=round(bbl, 2)),
         scenarios=scen, dates=chart_dates, close=chart_close, recent_trades=recent,
+        trade_markers=markers,
         generated=dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
     )
     with open(os.path.join(OUT, "results_live.json"), "w") as f:
