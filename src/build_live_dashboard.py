@@ -67,6 +67,16 @@ canvas{width:100%;height:300px;display:block;border-radius:10px;touch-action:non
     <div class="note" id="nt_next"></div>
   </div>
   <div class="card"><div class="h">Key levels</div><div class="lvl" id="levels"></div></div>
+  <div class="card" style="border-color:#5a2730;background:#1a1115"><div class="h" style="color:#ff8a8a">⚡ 8B MODEL · 5× LEVERAGE · HIGH RISK</div>
+    <div class="big" id="b8_action" style="font-size:18px"></div>
+    <div class="row"><span class="k">Market type</span><span class="v" id="b8_regime"></span></div>
+    <div class="row"><span class="k">Engine(s)</span><span class="v" id="b8_eng"></span></div>
+    <div class="row"><span class="k">Confidence</span><span class="v" id="b8_conf"></span></div>
+    <div class="row"><span class="k">Margin used</span><span class="v" id="b8_margin"></span></div>
+    <div class="row"><span class="k">Pre-set cut-loss (−15%)</span><span class="v amb" id="b8_cut"></span></div>
+    <div class="row"><span class="k">Liquidation (−20%)</span><span class="v neg" id="b8_liq"></span></div>
+    <div class="warn" id="b8_risk" style="margin-top:8px"></div>
+  </div>
 </div>
 
 <div class="pane" id="p-forecast">
@@ -117,6 +127,11 @@ const NT=D.no_trade_status;$('nt_mkt').textContent=NT.market;$('nt_eng').textCon
 $('nt_bias').textContent=NT.bias;$('nt_next').textContent=NT.next_action;
 const lv=D.levels;$('levels').innerHTML=[['Price','price'],['SMA20','sma20'],['SMA50','sma50'],['SMA200','sma200'],['BB upper','bb_upper'],['BB lower','bb_lower']].map(([n,k])=>`<div><div class="k">${n}</div><div class="v">$${f0(lv[k])}</div></div>`).join('');
 $('rmap').innerHTML=Object.entries(D.regime_map).map(([k,v])=>{const c=v==='STAND ASIDE'?'var(--mut)':'var(--grn)';return `<div class="row"><span class="k">${k}</span><span class="v" style="color:${c}">${v}</span></div>`}).join('');
+const B=D.model_8b; if(B){const bc=B.direction==='LONG'?'var(--grn)':(B.direction==='SHORT'?'var(--red)':'var(--mut)');
+ $('b8_action').textContent=B.action;$('b8_action').style.color=bc;$('b8_regime').textContent=B.regime;
+ $('b8_eng').textContent=(B.engines||[]).join(', ')||'—';$('b8_conf').textContent=B.confidence+(B.conviction_ok?' (ok)':' (below 0.4 → flat)');
+ $('b8_margin').textContent=B.margin_pct+'% of equity';$('b8_cut').textContent=B.cutloss?('$'+f0(B.cutloss)):'—';
+ $('b8_liq').textContent=B.liquidation?('$'+f0(B.liquidation)):'—';$('b8_risk').textContent='⚠️ '+B.risk;}
 
 // ---- Performance interactive chart ----
 const SC=Object.keys(D.scenarios);let scenario='Spot 1x';let logScale=true;

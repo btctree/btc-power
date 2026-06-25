@@ -16,8 +16,38 @@ import regime_switch_sim as rss
 import signals as sg
 import backtest as bt
 import fast_search as fs
+import regime_v2 as r2
+import stable_combo as sc
 
 HERE = os.path.dirname(__file__)
+
+
+def compute_8b(df, memb, conv=0.4, lev=5.0, vol_target=0.60):
+    """Current live state of the '8B model' = diversified regime_v2 ensemble at 5x,
+    conviction-filtered (|exposure|>=conv) for ~60% trade win-rate. HIGH RISK."""
+    d = df.copy()
+    h, l, c = d["high"], d["low"], d["close"]
+    d["ATRpct"] = pd.concat([(h - l), (h - c.shift()).abs(), (l - c.shift()).abs()], axis=1).max(axis=1).rolling(14).mean() / c
+    d["ADX"], d["PDI"], d["MDI"] = r2.wilder_adx(h, l, c, 14)
+    reg = r2.classify(d)
+    emap = sc.eligible_map(d, reg, memb)
+    exp = sc.exposure_series(d, reg, memb, emap)
+    i = len(d) - 1
+    price = float(c.iloc[i]); e = float(exp[i])
+    rv = float(pd.Series(c.pct_change()).rolling(20).std().iloc[i] * np.sqrt(365))
+    vscale = min(1.0, vol_target / rv) if rv > 0 else 1.0
+    ef = e if abs(e) >= conv else 0.0
+    target = ef * lev * vscale
+    direction = "LONG" if target > 0 else ("SHORT" if target < 0 else "FLAT")
+    cut = round(price * (0.85 if target > 0 else 1.15), 2) if target != 0 else None      # -15% (long)
+    liq = round(price * (0.80 if target > 0 else 1.20), 2) if target != 0 else None       # -20% (5x)
+    return dict(regime=reg[i], engines=(emap.get(reg[i]) or []),
+                exposure_mult=round(target, 2), direction=direction,
+                action=(f"{direction} {abs(target):.1f}x equity (5x lev)" if target != 0 else "FLAT — stand aside"),
+                confidence=round(abs(e), 2), conviction_ok=bool(abs(e) >= conv),
+                margin_pct=round(abs(target) / lev * 100, 0), vol_scale=round(vscale, 2), rv=round(rv, 2),
+                cutloss=cut, liquidation=liq, price=round(price, 2),
+                risk="5x leverage · can be LIQUIDATED · -77% backtest DD · headline assumes ~0 slippage")
 OUT = os.path.join(HERE, "..", "out")
 CONF = {"BULL_TREND": 1.0, "BULL_PULLBACK": 1.0, "CHOP_HIGHVOL": 1.0, "BEAR_TREND": 0.7, "BEAR_BOUNCE": 0.7}
 LONG_REGIMES = ["BULL_TREND", "BULL_PULLBACK", "CHOP_HIGHVOL", "BEAR_TREND", "BEAR_BOUNCE"]
@@ -176,6 +206,7 @@ def main():
                     bb_upper=round(bbu, 2), bb_lower=round(bbl, 2)),
         scenarios=scen, dates=chart_dates, close=chart_close, recent_trades=recent,
         regime_map={k: (v[0] or "STAND ASIDE") for k, v in rss.MAP.items()},
+        model_8b=compute_8b(df, memb),
         generated=dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
     )
     with open(os.path.join(OUT, "results_live.json"), "w") as f:

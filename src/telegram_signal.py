@@ -86,6 +86,12 @@ def daily_report(d, url):
         lines += ["<b>No position — next action</b>", f"• {F['next_action']}", ""]
     lines += [f"<b>Levels</b> S20 ${lv['sma20']:,.0f} · S50 ${lv['sma50']:,.0f} · S200 ${lv['sma200']:,.0f} · BB ${lv['bb_lower']:,.0f}-${lv['bb_upper']:,.0f}",
               f"<b>Strategy</b> spot 1x: $500→${sp['final']:,.0f} · maxDD {sp['maxdd']*100:.0f}%"]
+    B = d.get("model_8b")
+    if B:
+        lines += ["", f"<b>⚡ 8B MODEL (5× · HIGH RISK)</b>",
+                  f"• {B['action']} · {B['regime']} · engine {','.join(B.get('engines') or []) or '—'}",
+                  f"• Margin {B['margin_pct']:.0f}% · cut-loss {('$'+format(B['cutloss'],',.0f')) if B['cutloss'] else '—'} · liq {('$'+format(B['liquidation'],',.0f')) if B['liquidation'] else '—'}",
+                  f"• <i>{B['risk']}</i>"]
     if url:
         lines += ["", f"📱 {url}"]
     lines += ["", "<i>Hypothetical; daily-close signal, spot 1x. Not financial advice.</i>"]
