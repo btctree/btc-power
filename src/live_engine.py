@@ -22,9 +22,10 @@ import stable_combo as sc
 HERE = os.path.dirname(__file__)
 
 
-def compute_8b(df, memb, conv=0.4, lev=5.0, vol_target=0.60):
-    """Current live state of the '8B model' = diversified regime_v2 ensemble at 5x,
-    conviction-filtered (|exposure|>=conv) for ~60% trade win-rate. HIGH RISK."""
+def compute_models(df, memb, conv=0.4, lev=5.0, vol_target=0.60):
+    """Both signals from the SAME diversified regime_v2 ensemble so they always agree on
+    direction: CORE = spot 1x, 8B = 5x leverage (conviction-filtered). Returns core, m8b,
+    forecast, and the shared regime/exposure context."""
     d = df.copy()
     h, l, c = d["high"], d["low"], d["close"]
     d["ATRpct"] = pd.concat([(h - l), (h - c.shift()).abs(), (l - c.shift()).abs()], axis=1).max(axis=1).rolling(14).mean() / c
@@ -33,21 +34,35 @@ def compute_8b(df, memb, conv=0.4, lev=5.0, vol_target=0.60):
     emap = sc.eligible_map(d, reg, memb)
     exp = sc.exposure_series(d, reg, memb, emap)
     i = len(d) - 1
-    price = float(c.iloc[i]); e = float(exp[i])
+    price = float(c.iloc[i]); e = float(exp[i]); rgi = reg[i]; engines = emap.get(rgi) or []
     rv = float(pd.Series(c.pct_change()).rolling(20).std().iloc[i] * np.sqrt(365))
     vscale = min(1.0, vol_target / rv) if rv > 0 else 1.0
-    ef = e if abs(e) >= conv else 0.0
-    target = ef * lev * vscale
-    direction = "LONG" if target > 0 else ("SHORT" if target < 0 else "FLAT")
-    cut = round(price * (0.85 if target > 0 else 1.15), 2) if target != 0 else None      # -15% (long)
-    liq = round(price * (0.80 if target > 0 else 1.20), 2) if target != 0 else None       # -20% (5x)
-    return dict(regime=reg[i], engines=(emap.get(reg[i]) or []),
-                exposure_mult=round(target, 2), direction=direction,
-                action=(f"{direction} {abs(target):.1f}x equity (5x lev)" if target != 0 else "FLAT — stand aside"),
-                confidence=round(abs(e), 2), conviction_ok=bool(abs(e) >= conv),
-                margin_pct=round(abs(target) / lev * 100, 0), vol_scale=round(vscale, 2), rv=round(rv, 2),
-                cutloss=cut, liquidation=liq, price=round(price, 2),
-                risk="5x leverage · can be LIQUIDATED · -77% backtest DD · headline assumes ~0 slippage")
+    ef = e if abs(e) >= conv else 0.0                      # conviction filter
+    sgn = 1 if ef > 0 else (-1 if ef < 0 else 0)
+    dirn = "LONG" if sgn > 0 else ("SHORT" if sgn < 0 else "FLAT")
+    # CORE spot 1x: same direction, size = |exposure| of equity, no leverage/liquidation
+    core_size = round(abs(ef) * vscale * 100, 0)
+    core = dict(direction=dirn, regime=rgi, engines=engines,
+                action=(f"{dirn} (spot 1x)" if sgn else "FLAT — stand aside"),
+                size_pct=core_size, margin="SPOT 1x — no leverage, cannot be liquidated",
+                cutloss=(round(price * (0.85 if sgn > 0 else 1.15), 2) if sgn else None),
+                confidence=round(abs(e), 2),
+                take_profit="ride the regime; exit when the ensemble flips or regime changes")
+    # 8B model: 5x leverage on the same exposure
+    tgt = ef * lev * vscale
+    m8b = dict(direction=dirn, regime=rgi, engines=engines,
+               exposure_mult=round(tgt, 2),
+               action=(f"{dirn} {abs(tgt):.1f}x equity" if sgn else "FLAT — stand aside"),
+               confidence=round(abs(e), 2), conviction_ok=bool(abs(e) >= conv),
+               margin_pct=round(abs(tgt) / lev * 100, 0), vol_scale=round(vscale, 2),
+               cutloss=(round(price * (0.85 if sgn > 0 else 1.15), 2) if sgn else None),     # -15%
+               liquidation=(round(price * (0.80 if sgn > 0 else 1.20), 2) if sgn else None),  # ~-20% at 5x
+               note="0 liquidations in this backtest, but at 5x a >20% intraday gap COULD liquidate (future tail risk).")
+    forecast = dict(regime=rgi, engines=engines, direction=dirn,
+                    bias=("POTENTIAL UP" if sgn > 0 else ("POTENTIAL DOWN" if sgn < 0 else "STAND ASIDE")),
+                    headline=(f"{rgi}: engines ({', '.join(engines) or '—'}) lean {dirn}." if sgn
+                              else f"{rgi}: no qualifying setup — stand aside (confidence {abs(e):.2f} < 0.40)."))
+    return dict(core=core, m8b=m8b, forecast=forecast, regime=rgi, exposure=round(e, 3), price=round(price, 2))
 OUT = os.path.join(HERE, "..", "out")
 CONF = {"BULL_TREND": 1.0, "BULL_PULLBACK": 1.0, "CHOP_HIGHVOL": 1.0, "BEAR_TREND": 0.7, "BEAR_BOUNCE": 0.7}
 LONG_REGIMES = ["BULL_TREND", "BULL_PULLBACK", "CHOP_HIGHVOL", "BEAR_TREND", "BEAR_BOUNCE"]
@@ -167,46 +182,26 @@ def main():
                            pnl_nolev=round(float(t["pnl_nm"]), 2), pnl_lev=round(float(t["pnl_wm"]), 2),
                            reason=t["reason"], exit_date=t["exit_dt"][:10]))
 
-    # live signal + no-trade next action (latest day)
-    i = n - 1; rg = reg[i]
-    strat, kind, cs = rss.MAP.get(rg, (None, "flat", 0))
-    active = strat if (strat and cs >= 0.5) else None
-    m_ = memb[active][i] if active else 0
-    d = 1 if m_ > 0 else (-1 if m_ < 0 else 0)
-    if d == -1 and rg not in SHORT_REGIMES:
-        d = 0
-    price = float(df["close"].iloc[i]); s20 = float(df["SMA20"].iloc[i]); s50 = float(df["SMA50"].iloc[i])
-    s200 = float(df["SMA200"].iloc[i]); bbu = float(df["BB_Upper"].iloc[i]); bbl = float(df["BB_Lower"].iloc[i])
-    bucket = "High" if cs >= 1.8 else ("Med" if cs >= 1.0 else "Low/aside")
-    size_pct = {"High": 100, "Med": 70}.get(bucket, 0)
-    in_pos = d != 0
-    if d == 1:
-        action = f"LONG via {active}"; cut = round(price * 0.90, 2)
-    elif d == -1:
-        action = f"SHORT via {active}"; cut = round(price * 1.07, 2); size_pct = int(size_pct * 0.5)
-    else:
-        action = "FLAT — no position"; cut = None
-    bias = "BULLISH" if price > s50 > s200 else ("BEARISH" if price < s50 < s200 else "NEUTRAL")
-    # next action when flat: which engine on watch + the level that arms it
-    arm_long = round(max(s20, bbu * 0.999), 2)
-    next_action = (f"{active or 'No engine'} on watch in {rg}. Enter LONG if its trigger fires "
-                   f"(price reclaiming ~${arm_long:,.0f}); else stand aside.") if not in_pos else \
-        f"Holding {action}; exit on reversal / regime-change / trailing stop ${cut:,.0f}."
+    # both signals from the SAME ensemble (CORE 1x + 8B 5x) -> always agree on direction
+    M = compute_models(df, memb)
+    core = M["core"]; m8b = M["m8b"]; fc = M["forecast"]
+    i = n - 1; price = float(df["close"].iloc[i])
+    s20 = float(df["SMA20"].iloc[i]); s50 = float(df["SMA50"].iloc[i]); s200 = float(df["SMA200"].iloc[i])
+    bbu = float(df["BB_Upper"].iloc[i]); bbl = float(df["BB_Lower"].iloc[i])
+    in_pos = core["direction"] != "FLAT"
+    # regime -> directional bias map (for the colour-coded forecast playbook)
+    REG_BIAS = {"STRONG_UP": "UP", "TREND_UP": "UP", "PULLBACK_UP": "UP", "BOUNCE_DOWN": "UP",
+                "STRONG_DOWN": "DOWN", "TREND_DOWN": "DOWN", "CHOP_HIVOL": "ASIDE", "RANGE": "ASIDE", "NEUTRAL": "ASIDE"}
 
     out = dict(
         as_of=dates[i], price=round(price, 2), rsi=round(float(df["RSI"].iloc[i]), 1),
         in_position=in_pos,
-        live=dict(action=action, regime=rg, engine=(active or "STAND ASIDE"), direction=("LONG" if d == 1 else "SHORT" if d == -1 else "FLAT"),
-                  confidence=bucket, confidence_score=round(cs, 2), size_pct=size_pct,
-                  cutloss=cut, margin="SPOT 1x (no leverage, no liquidation)",
-                  take_profit="ride trend; exit on reversal / regime-change / trailing stop"),
-        no_trade_status=dict(market=rg, engine_on_watch=(active or "none / stand aside"),
-                             bias=bias, next_action=next_action, arms_long_above=arm_long),
+        live=core, model_8b=m8b, forecast=fc,
+        regime_bias=REG_BIAS,
+        no_trade_status=dict(market=M["regime"], bias=fc["bias"], next_action=fc["headline"]),
         levels=dict(price=round(price, 2), sma20=round(s20, 2), sma50=round(s50, 2), sma200=round(s200, 2),
                     bb_upper=round(bbu, 2), bb_lower=round(bbl, 2)),
         scenarios=scen, dates=chart_dates, close=chart_close, recent_trades=recent,
-        regime_map={k: (v[0] or "STAND ASIDE") for k, v in rss.MAP.items()},
-        model_8b=compute_8b(df, memb),
         generated=dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
     )
     with open(os.path.join(OUT, "results_live.json"), "w") as f:

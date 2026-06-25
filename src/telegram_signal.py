@@ -1,14 +1,12 @@
-"""Telegram bot for BTC Power Signal.
+"""Telegram bot for BTC Power Signal — tracks the deployed 8B model.
 
 Modes:
-  --mode daily   full daily report (signal + forecast + levels + performance).
-  --mode watch   hourly watcher: detects ENTRY (in-market) / EXIT (out-market) and
-                 intraday trailing-stop hits, sends an alert ONLY on a transition,
-                 and once a day also sends the daily report. Uses ../state.json to
-                 remember the open position across runs (committed by the workflow).
-
-Entry alerts always include the CUT-LOSS price to pre-set as a resting stop.
-Config: TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID (env or ../.env), DASHBOARD_URL.
+  --mode daily   full report (8B signal + core + forecast + levels).
+  --mode watch   hourly: alert on a NEW 8B signal (entry/exit/flip) or an intraday
+                 cut-loss breach; once a day also sends the full report. State persisted
+                 in ../state.json so an alert fires only on a transition (no spam).
+Entry alerts always include the cut-loss price. Single source of truth = the CI run
+(don't send manual one-offs, or the dashboard and Telegram desync).
 """
 import os, json, sys, datetime as dt
 import urllib.request, urllib.parse
@@ -16,7 +14,6 @@ import urllib.request, urllib.parse
 HERE = os.path.dirname(__file__)
 OUT = os.path.join(HERE, "..", "out")
 STATE = os.path.join(HERE, "..", "state.json")
-TRAIL_L, TRAIL_S = 0.10, 0.07
 
 
 def load_env():
@@ -33,23 +30,20 @@ def tg(text):
     if not tok or not chat:
         print("[telegram] no creds — message:\n" + text.replace("<b>", "").replace("</b>", "").replace("<i>", "").replace("</i>", ""))
         return False
-    data = urllib.parse.urlencode({"chat_id": chat, "text": text, "parse_mode": "HTML",
-                                   "disable_web_page_preview": "true"}).encode()
+    data = urllib.parse.urlencode({"chat_id": chat, "text": text, "parse_mode": "HTML", "disable_web_page_preview": "true"}).encode()
     try:
-        with urllib.request.urlopen(urllib.request.Request(
-                f"https://api.telegram.org/bot{tok}/sendMessage", data=data), timeout=20) as r:
+        with urllib.request.urlopen(urllib.request.Request(f"https://api.telegram.org/bot{tok}/sendMessage", data=data), timeout=20) as r:
             ok = json.loads(r.read()).get("ok", False); print("[telegram]", "sent" if ok else "not-ok"); return ok
     except Exception as e:
         print("[telegram] failed:", e); return False
 
 
-def live_price():
+def live_price(fallback):
     try:
-        u = "https://data-api.binance.vision/api/v3/ticker/price?symbol=BTCUSDT"
-        with urllib.request.urlopen(u, timeout=15) as r:
+        with urllib.request.urlopen("https://data-api.binance.vision/api/v3/ticker/price?symbol=BTCUSDT", timeout=15) as r:
             return float(json.loads(r.read())["price"])
-    except Exception as e:
-        print("[price] fetch failed:", e); return None
+    except Exception:
+        return fallback
 
 
 def load_state():
@@ -58,110 +52,81 @@ def load_state():
             return json.load(open(STATE))
         except Exception:
             pass
-    return {"in_position": False, "direction": None, "entry": None, "stop": None,
-            "hi": None, "lo": None, "entry_date": None, "last_report_date": None}
-
-
-def save_state(s):
-    json.dump(s, open(STATE, "w"), indent=2)
-
-
-def flat(prev):
-    return {"in_position": False, "direction": None, "entry": None, "stop": None,
-            "hi": None, "lo": None, "entry_date": None, "last_report_date": prev.get("last_report_date")}
+    return {"direction": "FLAT", "entry": None, "cutloss": None, "last_report_date": None}
 
 
 def daily_report(d, url):
-    L = d["live"]; F = d["no_trade_status"]; lv = d["levels"]; sp = d["scenarios"]["Spot 1x"]["metrics"]
-    de = {"LONG": "🟢", "SHORT": "🔴", "FLAT": "⚪"}.get(L["direction"], "⚪")
+    C = d["live"]; B = d["model_8b"]; F = d["forecast"]; lv = d["levels"]; sp = d["scenarios"]["Spot 1x"]["metrics"]
+    de = {"LONG": "🟢", "SHORT": "🔴", "FLAT": "⚪"}.get(B["direction"], "⚪")
     lines = [f"<b>⚡ BTC POWER SIGNAL — {d['as_of']}</b>",
              f"Price <b>${d['price']:,.0f}</b> · RSI {d['rsi']}",
-             f"{de} <b>{L['action']}</b>", "",
-             "<b>Setup</b>",
-             f"• Market: {L['regime']} · Engine: {L['engine']}",
-             f"• Confidence: {L['confidence']} ({L['confidence_score']}) · Size: {L['size_pct']}%",
-             f"• Margin: {L['margin']}",
-             f"• Cut-loss: {('$'+format(L['cutloss'],',.0f')) if L['cutloss'] else '—'} · TP: ride trend", ""]
-    if not d["in_position"]:
-        lines += ["<b>No position — next action</b>", f"• {F['next_action']}", ""]
-    lines += [f"<b>Levels</b> S20 ${lv['sma20']:,.0f} · S50 ${lv['sma50']:,.0f} · S200 ${lv['sma200']:,.0f} · BB ${lv['bb_lower']:,.0f}-${lv['bb_upper']:,.0f}",
-              f"<b>Strategy</b> spot 1x: $500→${sp['final']:,.0f} · maxDD {sp['maxdd']*100:.0f}%"]
-    B = d.get("model_8b")
-    if B:
-        lines += ["", f"<b>⚡ 8B MODEL (5× · HIGH RISK)</b>",
-                  f"• {B['action']} · {B['regime']} · engine {','.join(B.get('engines') or []) or '—'}",
-                  f"• Margin {B['margin_pct']:.0f}% · cut-loss {('$'+format(B['cutloss'],',.0f')) if B['cutloss'] else '—'} · liq {('$'+format(B['liquidation'],',.0f')) if B['liquidation'] else '—'}",
-                  f"• <i>{B['risk']}</i>"]
+             f"{de} <b>8B (5×): {B['action']}</b>", "",
+             "<b>8B model · 5× leverage</b>",
+             f"• Market {B['regime']} · engines {', '.join(B['engines']) or '—'} · confidence {B['confidence']}"]
+    if B["cutloss"]:
+        lines.append(f"• Margin {B['margin_pct']:.0f}% · 🛑 cut-loss ${B['cutloss']:,.0f} · liquidation ${B['liquidation']:,.0f}")
+    lines += ["", (f"<b>Core (spot 1×, same way)</b>: {C['action']} · {C['size_pct']:.0f}%"
+                   + (f" · cut ${C['cutloss']:,.0f}" if C["cutloss"] else "")),
+              "", f"<b>Forecast</b> {F['bias']} — {F['headline']}",
+              f"<b>Levels</b> S20 ${lv['sma20']:,.0f} · S50 ${lv['sma50']:,.0f} · S200 ${lv['sma200']:,.0f}",
+              f"<b>Spot 1× backtest</b> $500→${sp['final']:,.0f} · maxDD {sp['maxdd']*100:.0f}%"]
     if url:
         lines += ["", f"📱 {url}"]
-    lines += ["", "<i>Hypothetical; daily-close signal, spot 1x. Not financial advice.</i>"]
+    lines += ["", "<i>8B = 5× leverage (can be liquidated on a >20% gap); spot 1× cannot. Hypothetical; not advice.</i>"]
     return "\n".join(lines)
 
 
-def entry_msg(L, price):
-    de = "🟢 LONG" if L["direction"] == "LONG" else "🔴 SHORT"
-    return (f"<b>⚡ BTC POWER — ENTER {de}</b>\n"
-            f"Price <b>${price:,.0f}</b> · {L['regime']} · engine {L['engine']}\n"
-            f"Confidence {L['confidence']} ({L['confidence_score']}) · Size {L['size_pct']}% · spot 1x\n"
-            f"🛑 <b>Pre-set cut-loss: ${L['cutloss']:,.0f}</b> ({int(TRAIL_L*100) if L['direction']=='LONG' else int(TRAIL_S*100)}% trailing)\n"
-            f"TP: none — ride trend; exit on reversal / regime-change / stop.\n"
-            f"<i>Place a resting stop at the cut-loss to fight slippage.</i>")
+def entry_msg(B, price):
+    de = "🟢 LONG" if B["direction"] == "LONG" else "🔴 SHORT"
+    return (f"<b>⚡ BTC POWER — ENTER {de} (8B · 5×)</b>\n"
+            f"Price <b>${price:,.0f}</b> · {B['regime']} · engines {', '.join(B['engines']) or '—'}\n"
+            f"Confidence {B['confidence']} · margin {B['margin_pct']:.0f}%\n"
+            f"🛑 <b>Pre-set cut-loss ${B['cutloss']:,.0f}</b> (−15%) · liquidation ${B['liquidation']:,.0f} (−20%)\n"
+            f"<i>Place the resting stop at the cut-loss to avoid the −20% liquidation.</i>")
 
 
 def exit_msg(s, price, reason):
-    d = s["direction"]; pnl = (price / s["entry"] - 1) * (1 if d == "LONG" else -1)
-    e = "🟢" if pnl >= 0 else "🔴"
-    return (f"<b>⚡ BTC POWER — EXIT {d}</b> {e}\n"
-            f"Out ${price:,.0f} (in ${s['entry']:,.0f}) · <b>{pnl*100:+.1f}%</b>\n"
-            f"Reason: {reason}. Now FLAT — wait for next signal.")
+    d = s["direction"]; pnl = (price / s["entry"] - 1) * (1 if d == "LONG" else -1) if s.get("entry") else 0
+    return (f"<b>⚡ BTC POWER — EXIT {d} (8B)</b> {'🟢' if pnl >= 0 else '🔴'}\n"
+            f"Out ${price:,.0f}" + (f" (in ${s['entry']:,.0f}) · <b>{pnl*100:+.1f}%</b>" if s.get('entry') else "")
+            + f"\nReason: {reason}. Now FLAT — wait for the next 8B signal.")
 
 
 def main():
     load_env()
-    mode = "daily"
-    if "--mode" in sys.argv:
-        mode = sys.argv[sys.argv.index("--mode") + 1]
+    mode = sys.argv[sys.argv.index("--mode") + 1] if "--mode" in sys.argv else "daily"
     d = json.load(open(os.path.join(OUT, "results_live.json")))
     url = os.environ.get("DASHBOARD_URL", "")
-    L = d["live"]
+    B = d["model_8b"]
     if mode == "daily" or "--dry" in sys.argv:
         msg = daily_report(d, url)
         if "--dry" in sys.argv:
             print(msg); return
         tg(msg); return
 
-    # ---- watch mode ----
-    s = load_state()
-    today = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d")
-    price = live_price() or d["price"]
-    want_long = L["direction"] == "LONG"; want_short = L["direction"] == "SHORT"; want_flat = L["direction"] == "FLAT"
-
-    # 1) exit by intraday trailing stop while in position
-    if s["in_position"]:
-        if s["direction"] == "LONG":
-            s["hi"] = max(s.get("hi") or s["entry"], price); s["stop"] = max(s["stop"], s["hi"] * (1 - TRAIL_L))
-            if price <= s["stop"]:
-                tg(exit_msg(s, s["stop"], "trailing stop hit")); s = flat(s)
+    # ---- watch mode (tracks the 8B model) ----
+    s = load_state(); today = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d")
+    price = live_price(d["price"]); cur = B["direction"]
+    # 1) intraday cut-loss breach on an open position
+    if s["direction"] in ("LONG", "SHORT") and s.get("cutloss"):
+        hit = (price <= s["cutloss"]) if s["direction"] == "LONG" else (price >= s["cutloss"])
+        if hit:
+            tg(exit_msg(s, s["cutloss"], "cut-loss hit"))
+            s = {"direction": "FLAT", "entry": None, "cutloss": None, "last_report_date": s["last_report_date"]}
+    # 2) 8B signal change (entry / exit / flip)
+    if cur != s["direction"]:
+        if s["direction"] in ("LONG", "SHORT"):
+            tg(exit_msg(s, price, "8B signal flipped to " + cur))
+        if cur in ("LONG", "SHORT"):
+            tg(entry_msg(B, price))
+            s.update(direction=cur, entry=price, cutloss=B["cutloss"])
         else:
-            s["lo"] = min(s.get("lo") or s["entry"], price); s["stop"] = min(s["stop"], s["lo"] * (1 + TRAIL_S))
-            if price >= s["stop"]:
-                tg(exit_msg(s, s["stop"], "trailing stop hit")); s = flat(s)
-
-    # 2) daily-signal transitions (entries / signal exits) — based on the closed-bar signal
-    if s["in_position"] and (want_flat or (s["direction"] == "LONG" and want_short) or (s["direction"] == "SHORT" and want_long)):
-        tg(exit_msg(s, price, "daily signal flipped"))
-        s = flat(s)
-    if (not s["in_position"]) and (want_long or want_short):
-        tg(entry_msg(L, price))
-        s.update(in_position=True, direction=L["direction"], entry=price, stop=L["cutloss"],
-                 hi=price, lo=price, entry_date=today)
-
+            s.update(direction="FLAT", entry=None, cutloss=None)
     # 3) once-a-day full report
     if s.get("last_report_date") != today:
         tg(daily_report(d, url)); s["last_report_date"] = today
-
-    save_state(s)
-    print("[watch] state:", s)
+    json.dump(s, open(STATE, "w"), indent=2)
+    print("[watch] 8B:", cur, "| state:", s)
 
 
 if __name__ == "__main__":
