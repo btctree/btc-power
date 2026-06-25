@@ -56,7 +56,7 @@ def load_state():
 
 
 def daily_report(d, url):
-    C = d["live"]; B = d["model_8b"]; F = d["forecast"]; lv = d["levels"]; sp = d["scenarios"]["Spot 1x"]["metrics"]
+    C = d["live"]; B = d["model_8b"]; F = d["forecast"]; lv = d["levels"]; sp = d["scenarios"]["Core 1x"]["metrics"]
     de = {"LONG": "🟢", "SHORT": "🔴", "FLAT": "⚪"}.get(B["direction"], "⚪")
     lines = [f"<b>⚡ BTC POWER SIGNAL — {d['as_of']}</b>",
              f"Price <b>${d['price']:,.0f}</b> · RSI {d['rsi']}",
@@ -69,7 +69,7 @@ def daily_report(d, url):
                    + (f" · cut ${C['cutloss']:,.0f}" if C["cutloss"] else "")),
               "", f"<b>Forecast</b> {F['bias']} — {F['headline']}",
               f"<b>Levels</b> S20 ${lv['sma20']:,.0f} · S50 ${lv['sma50']:,.0f} · S200 ${lv['sma200']:,.0f}",
-              f"<b>Spot 1× backtest</b> $500→${sp['final']:,.0f} · maxDD {sp['maxdd']*100:.0f}%"]
+              f"<b>Core 1× backtest</b> $500→${sp['final']:,.0f} · maxDD {sp['maxdd']*100:.0f}%"]
     if url:
         lines += ["", f"📱 {url}"]
     lines += ["", "<i>8B = 5× leverage (can be liquidated on a >20% gap); spot 1× cannot. Hypothetical; not advice.</i>"]

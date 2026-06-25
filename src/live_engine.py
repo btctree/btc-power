@@ -22,10 +22,9 @@ import stable_combo as sc
 HERE = os.path.dirname(__file__)
 
 
-def compute_models(df, memb, conv=0.4, lev=5.0, vol_target=0.60):
-    """Both signals from the SAME diversified regime_v2 ensemble so they always agree on
-    direction: CORE = spot 1x, 8B = 5x leverage (conviction-filtered). Returns core, m8b,
-    forecast, and the shared regime/exposure context."""
+def ensemble_ctx(df, memb):
+    """Shared v2-ensemble context (regime_v2 + eligible engines + exposure series) used by
+    BOTH the Returns scenarios and the live signal, so the chart matches the signal."""
     d = df.copy()
     h, l, c = d["high"], d["low"], d["close"]
     d["ATRpct"] = pd.concat([(h - l), (h - c.shift()).abs(), (l - c.shift()).abs()], axis=1).max(axis=1).rolling(14).mean() / c
@@ -33,7 +32,15 @@ def compute_models(df, memb, conv=0.4, lev=5.0, vol_target=0.60):
     reg = r2.classify(d)
     emap = sc.eligible_map(d, reg, memb)
     exp = sc.exposure_series(d, reg, memb, emap)
-    i = len(d) - 1
+    return reg, emap, exp
+
+
+def compute_models(df, memb, ctx=None, conv=0.4, lev=5.0, vol_target=0.60):
+    """Both signals from the SAME diversified regime_v2 ensemble so they always agree on
+    direction: CORE = spot 1x, 8B = 5x leverage (conviction-filtered)."""
+    c = df["close"]
+    reg, emap, exp = ctx if ctx else ensemble_ctx(df, memb)
+    i = len(df) - 1
     price = float(c.iloc[i]); e = float(exp[i]); rgi = reg[i]; engines = emap.get(rgi) or []
     rv = float(pd.Series(c.pct_change()).rolling(20).std().iloc[i] * np.sqrt(365))
     vscale = min(1.0, vol_target / rv) if rv > 0 else 1.0
@@ -158,16 +165,22 @@ def metrics(eq):
 def main():
     df, reg, memb = setup()
     dates = df["Date"].tolist(); n = len(df)
-    i0 = max(next(i for i, d in enumerate(dates) if d >= "2014-01-01"), 260)
-    SPOT = build_map(1, 1); LEV = build_map(5, 2)
+    i0 = 260
+    # v2 ensemble (same model as the live signal) -> Returns curves match the deployed signal
+    reg2, emap2, exp_raw = ensemble_ctx(df, memb)
+    expf = np.where(np.abs(exp_raw) >= 0.4, exp_raw, 0.0)      # conviction filter (matches 8B)
     scen = {}
-    specs = [("Spot 1x", SPOT, 0.001), ("Lev perfect", LEV, 0.0),
-             ("Lev 50bp", LEV, 0.005), ("Lev 100bp", LEV, 0.010), ("Lev 150bp", LEV, 0.015)]
-    for name, sm, slip in specs:
-        eq, liq = fs.fast_sim(sm, i0, n, slip=slip)
+    specs = [("Core 1x", 1, 0.003, "Core spot 1x — the safe, tradeable curve"),
+             ("8B 5x (0bp)", 5, 0.0, "8B model perfect-fill — optimistic"),
+             ("8B 5x · 50bp", 5, 0.005, "8B at 50bp slippage"),
+             ("8B 5x · 150bp", 5, 0.015, "8B at 150bp slippage (crisis)")]
+    for name, lev, slip, desc in specs:
+        eq, liq = sc.simulate(df, expf, lev=lev, slip=slip, vol_target=0.60, dd_kill=0.30)
+        eq = eq[i0:]
         m = metrics(eq)
-        # subsample dates/eq for chart payload (every other day to keep file lean)
-        scen[name] = dict(eq=[round(float(x), 2) for x in eq], metrics={k: (None if (isinstance(v, float) and v != v) else round(float(v), 4)) for k, v in m.items()}, liq=int(liq), slip=slip)
+        scen[name] = dict(eq=[round(float(x), 2) for x in eq],
+                          metrics={k: (None if (isinstance(v, float) and v != v) else round(float(v), 4)) for k, v in m.items()},
+                          liq=int(liq), slip=slip, desc=desc)
     chart_dates = dates[i0:n]
     chart_close = [round(float(x), 2) for x in df["close"].to_numpy()[i0:n]]
 
@@ -183,7 +196,7 @@ def main():
                            reason=t["reason"], exit_date=t["exit_dt"][:10]))
 
     # both signals from the SAME ensemble (CORE 1x + 8B 5x) -> always agree on direction
-    M = compute_models(df, memb)
+    M = compute_models(df, memb, ctx=(reg2, emap2, exp_raw))
     core = M["core"]; m8b = M["m8b"]; fc = M["forecast"]
     i = n - 1; price = float(df["close"].iloc[i])
     s20 = float(df["SMA20"].iloc[i]); s50 = float(df["SMA50"].iloc[i]); s200 = float(df["SMA200"].iloc[i])
