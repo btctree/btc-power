@@ -48,6 +48,14 @@ canvas{width:100%;height:300px;display:block;border-radius:10px;touch-action:non
 .trade{background:#0e131d;border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:7px;font-size:12px}
 .trade .t1{display:flex;justify-content:space-between;font-weight:700;font-size:13px}.trade .t2{color:var(--mut);margin-top:3px;display:flex;justify-content:space-between}
 .risknote{background:#23200f;border:1px solid #4a431d;border-radius:10px;padding:9px;color:#ffe39a;font-size:11.5px;margin-top:8px}
+.trade{cursor:pointer;transition:border-color .15s}.trade:active{border-color:var(--blu)}
+.modal{position:fixed;inset:0;z-index:20;background:#000c;backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;padding:22px}
+.modal.on{display:flex}
+.sheet{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;max-width:360px;width:100%}
+.sheet h3{margin:0 0 4px;font-size:16px}.sheet .sub{color:var(--mut);font-size:11.5px;margin-bottom:8px}
+.acts{display:flex;gap:8px;margin-top:14px}
+.acts button{flex:1;padding:10px;border-radius:10px;font-weight:700;font-size:13px;border:1px solid var(--line)}
+.btn-pri{background:#13324a;color:var(--blu);border-color:var(--blu)}.btn-sec{background:#0e131d;color:var(--ink)}
 </style></head><body><div class="app">
 <header><div class="brand">⚡ BTC POWER • signal <span id="asof"></span></div>
 <div class="px">$<span id="pxlive">…</span><small id="pxsig"></small></div>
@@ -91,7 +99,8 @@ canvas{width:100%;height:300px;display:block;border-radius:10px;touch-action:non
   <div class="card"><div class="h">Equity from $500 — drag to pan · pinch/wheel zoom · tap a point</div>
     <div class="scbtns" id="scbtns"></div>
     <canvas id="chart"></canvas>
-    <div class="ctrls"><button onclick="zoomBtn(0.7)">＋</button><button onclick="zoomBtn(1.4)">－</button><button onclick="toggleScale()" id="scaleBtn">Log</button><button onclick="resetView()">Reset</button></div>
+    <div class="legend" style="margin-top:6px"><span><b style="color:var(--grn)">▲</b> long entry</span><span><b style="color:var(--red)">▼</b> short entry</span><span class="mut">tap a Trade to pin it here</span></div>
+    <div class="ctrls"><button onclick="zoomBtn(0.7)">＋</button><button onclick="zoomBtn(1.4)">－</button><button onclick="toggleScale()" id="scaleBtn">Log</button><button onclick="toggleMarks()" id="markBtn">Marks ○</button><button onclick="resetView()">Reset</button></div>
     <div class="row" style="margin-top:8px"><span class="k">Final $500→</span><span class="v" id="m_final"></span></div>
     <div class="row"><span class="k">CAGR / maxDD</span><span class="v" id="m_cd"></span></div>
   </div>
@@ -103,6 +112,11 @@ canvas{width:100%;height:300px;display:block;border-radius:10px;touch-action:non
     <div id="tradelist"></div></div>
 </div>
 </div>
+<div class="modal" id="tmodal"><div class="sheet">
+  <h3 id="tm_title"></h3><div class="sub" id="tm_sub"></div>
+  <div id="tm_body"></div>
+  <div class="acts"><button class="btn-pri" id="tm_jump">📈 Jump to chart</button><button class="btn-sec" onclick="closeModal()">Close</button></div>
+</div></div>
 <nav class="tabbar">
   <div class="tab on" data-p="signal"><span class="ic">📡</span>Signal</div>
   <div class="tab" data-p="forecast"><span class="ic">🔮</span>Forecast</div>
@@ -141,20 +155,41 @@ $('f_bias').textContent=(F.bias==='POTENTIAL UP'?'▲ ':(F.bias==='POTENTIAL DOW
 $('f_head').textContent=F.headline;$('f_regime').textContent=F.regime;$('f_eng').textContent=(F.engines||[]).join(', ')||'—';
 const BCOL={UP:'var(--grn)',DOWN:'var(--red)',ASIDE:'var(--mut)'};const BTXT={UP:'long',DOWN:'short',ASIDE:'stand aside'};
 $('rmap').innerHTML=Object.entries(D.regime_bias).map(([k,b])=>`<div class="row"><span class="k">${k}</span><span class="v" style="color:${BCOL[b]}">● ${BTXT[b]}</span></div>`).join('');
-// trades
-$('tradelist').innerHTML=D.recent_trades.map(t=>{const c=t.direction==='LONG'?'var(--grn)':'var(--red)';const rc=t.ret>=0?'pos':'neg';
- return `<div class="trade"><div class="t1"><span style="color:${c}">${t.direction} · ${t.strategy}</span><span class="${rc}">${(t.ret*100).toFixed(1)}%</span></div>
+// trades (tap a row -> detail popup + jump to chart)
+$('tradelist').innerHTML=D.recent_trades.map((t,k)=>{const c=t.direction==='LONG'?'var(--grn)':'var(--red)';const rc=t.ret>=0?'pos':'neg';
+ return `<div class="trade" onclick="openTrade(${k})"><div class="t1"><span style="color:${c}">${t.direction} · ${t.strategy}</span><span class="${rc}">${(t.ret*100).toFixed(1)}%</span></div>
  <div class="t2"><span>${t.entry_dt} → ${t.exit_dt}</span><span>${t.market}</span></div>
- <div class="t2"><span>in $${f0(t.entry)} · out $${f0(t.exit)}</span><span>${t.reason}</span></div></div>`}).join('');
+ <div class="t2"><span>in $${f0(t.entry)} · out $${f0(t.exit)}</span><span>${t.reason} ›</span></div></div>`}).join('');
+// trade detail popup: 1x (spot) vs 5x (8B) return + jump-to-chart
+function tradeIdx(t){if(t.idx!=null)return t.idx;const i=D.dates.indexOf(t.entry_dt);return i>=0?i:null;}
+function openTrade(k){const t=D.recent_trades[k];const c=t.direction==='LONG'?'var(--grn)':'var(--red)';
+ const r1=t.ret,r5=Math.max(-1,t.ret*5),liq=t.ret<=-0.20;
+ $('tm_title').innerHTML=`<span style="color:${c}">${t.direction} · ${t.strategy}</span>`;
+ $('tm_sub').textContent=t.market+' · '+t.entry_dt+' → '+t.exit_dt;
+ $('tm_body').innerHTML=[
+   ['Entry',`$${f0(t.entry)} · ${t.entry_dt}`],
+   ['Exit',`$${f0(t.exit)} · ${t.exit_dt}`],
+   ['Return · spot 1×',`<span class="${r1>=0?'pos':'neg'}">${(r1*100).toFixed(1)}%</span>`],
+   ['Return · 8B 5×',`<span class="${r5>=0?'pos':'neg'}">${(r5*100).toFixed(1)}%${liq?' ⚠ liquidated':''}</span>`],
+   ['Exit reason',t.reason]
+ ].map(([a,b])=>`<div class="row"><span class="k">${a}</span><span class="v">${b}</span></div>`).join('');
+ const ix=tradeIdx(t);$('tm_jump').onclick=()=>{closeModal();jumpToTrade(ix);};
+ $('tm_jump').style.opacity=ix==null?0.4:1;
+ $('tmodal').classList.add('on');}
+function closeModal(){$('tmodal').classList.remove('on');}
+$('tmodal').addEventListener('click',e=>{if(e.target.id==='tmodal')closeModal();});
+function jumpToTrade(idx){if(idx==null)return;pinned=idx;const half=120,L=D.dates.length-1;
+ view.a=Math.max(0,idx-half);view.b=Math.min(L,idx+half);switchTab('perf');}
 // ---- interactive chart ----
 const SC=Object.keys(D.scenarios);let scenario=SC.includes('Lev 5x growth')?'Lev 5x growth':SC[0];
-let logScale=true,view={a:0,b:D.dates.length-1},hover=null;
+let logScale=true,view={a:0,b:D.dates.length-1},hover=null,showMarks=false,pinned=null;
 $('scbtns').innerHTML=SC.map(s=>`<div class="scb${s===scenario?' on':''}" data-sc="${s}">${s}</div>`).join('');
 document.querySelectorAll('.scb').forEach(b=>b.onclick=()=>{scenario=b.dataset.sc;document.querySelectorAll('.scb').forEach(x=>x.classList.toggle('on',x.dataset.sc===scenario));updM();draw();});
 function updM(){const m=D.scenarios[scenario].metrics;$('m_final').textContent='$'+f0(m.final);$('m_cd').textContent=fp(m.cagr)+' / '+fp(m.maxdd);}
 function zoomBtn(f){const c=(view.a+view.b)/2,w=(view.b-view.a)*f/2;view.a=Math.max(0,c-w);view.b=Math.min(D.dates.length-1,c+w);draw();}
 function toggleScale(){logScale=!logScale;$('scaleBtn').textContent=logScale?'Log':'Lin';draw();}
-function resetView(){view={a:0,b:D.dates.length-1};hover=null;draw();}
+function toggleMarks(){showMarks=!showMarks;$('markBtn').textContent=showMarks?'Marks ●':'Marks ○';draw();}
+function resetView(){view={a:0,b:D.dates.length-1};hover=null;pinned=null;draw();}
 function draw(){const cv=$('chart');if(!cv.clientWidth)return;const dpr=window.devicePixelRatio||1,W=cv.clientWidth,H=300;
  cv.width=W*dpr;cv.height=H*dpr;const x=cv.getContext('2d');x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,W,H);
  const eq=D.scenarios[scenario].eq,a=Math.max(0,Math.floor(view.a)),b=Math.min(eq.length-1,Math.ceil(view.b));
@@ -167,8 +202,10 @@ function draw(){const cv=$('chart');if(!cv.clientWidth)return;const dpr=window.d
  else{for(let g=0;g<=4;g++){const v=lo+(hi-lo)*g/4,y=py(v);x.beginPath();x.moveTo(PL,y);x.lineTo(W-PR,y);x.stroke();x.fillText('$'+f0(v),3,y-2);}}
  x.fillStyle='#6b7787';[a,Math.floor((a+b)/2),b].forEach(i=>x.fillText((D.dates[i]||'').slice(0,7),Math.min(W-40,Math.max(PL,px(i)-16)),H-4));
  x.strokeStyle='#2bd576';x.lineWidth=1.8;x.beginPath();let st=false;for(let i=a;i<=b;i++){const v=eq[i];if(v<=0)continue;i&&st?x.lineTo(px(i),py(v)):x.moveTo(px(i),py(v));st=true;}x.stroke();
- // 8B action markers (green ▲ = long entry, red ▼ = short entry)
- if(D.trade_markers){D.trade_markers.forEach(mk=>{const ix=mk.i;if(ix<a||ix>b)return;const v=eq[ix];if(v<=0)return;const X=px(ix),Y=py(v);x.fillStyle=mk.d>0?'#2bd576':'#ff5d5d';x.beginPath();if(mk.d>0){x.moveTo(X,Y-7);x.lineTo(X-4,Y-1);x.lineTo(X+4,Y-1);}else{x.moveTo(X,Y+7);x.lineTo(X-4,Y+1);x.lineTo(X+4,Y+1);}x.closePath();x.fill();});}
+ // 8B action markers (green ▲ = long entry, red ▼ = short entry) — off by default, de-cluttered when on
+ if(showMarks&&D.trade_markers){let lastX=-99;D.trade_markers.forEach(mk=>{const ix=mk.i;if(ix<a||ix>b)return;const v=eq[ix];if(v<=0)return;const X=px(ix);if(X-lastX<16)return;lastX=X;const Y=py(v);x.fillStyle=mk.d>0?'#2bd576':'#ff5d5d';x.beginPath();if(mk.d>0){x.moveTo(X,Y-7);x.lineTo(X-4,Y-1);x.lineTo(X+4,Y-1);}else{x.moveTo(X,Y+7);x.lineTo(X-4,Y+1);x.lineTo(X+4,Y+1);}x.closePath();x.fill();});}
+ // pinned trade (from the Trades tab) — amber dashed line + dot, always shown
+ if(pinned!=null&&pinned>=a&&pinned<=b){const v=eq[pinned];if(v>0){const X=px(pinned),Y=py(v);x.strokeStyle='#ffb84d';x.lineWidth=1.5;x.setLineDash([3,3]);x.beginPath();x.moveTo(X,PT);x.lineTo(X,H-PB);x.stroke();x.setLineDash([]);x.fillStyle='#ffb84d';x.beginPath();x.arc(X,Y,5,0,7);x.fill();x.strokeStyle='#0c1018';x.lineWidth=2;x.stroke();}}
  // hover tooltip
  if(hover!=null&&hover>=a&&hover<=b){const X=px(hover),v=eq[hover];x.strokeStyle='#4da3ff';x.lineWidth=1;x.setLineDash([4,3]);x.beginPath();x.moveTo(X,PT);x.lineTo(X,H-PB);x.stroke();x.setLineDash([]);
   if(v>0){x.fillStyle='#4da3ff';x.beginPath();x.arc(X,py(v),3.5,0,7);x.fill();}

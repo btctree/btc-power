@@ -170,7 +170,8 @@ def ensemble_trades(df, expf, reg, emap, i0=260):
         trades.append(dict(entry_dt=dates[i], exit_dt=dates[j], market=reg[i],
                            strategy=", ".join(emap.get(reg[i]) or []) or "—",
                            direction="LONG" if s > 0 else "SHORT", entry=round(entry, 2),
-                           exit=round(exit_, 2), ret=round(ret, 4), reason=reason))
+                           exit=round(exit_, 2), ret=round(ret, 4), reason=reason,
+                           idx=i - i0, exit_idx=j - i0))
         markers.append({"i": i - i0, "d": s})
         i = j + 1
     return trades, markers
@@ -214,7 +215,7 @@ def main():
     recent = [dict(entry_dt=t["entry_dt"], exit_dt=t["exit_dt"], market=t["market"],
                    strategy=t["strategy"], direction=t["direction"],
                    entry=t["entry"], exit=t["exit"], ret=t["ret"], reason=t["reason"],
-                   exit_date=t["exit_dt"]) for t in all8b[-20:][::-1]]
+                   exit_date=t["exit_dt"], idx=t["idx"], exit_idx=t["exit_idx"]) for t in all8b[-20:][::-1]]
 
     # both signals from the SAME ensemble (CORE 1x + 8B 5x) -> always agree on direction
     M = compute_models(df, memb, ctx=(reg2, emap2, exp_raw))
