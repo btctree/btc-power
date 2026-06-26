@@ -1,8 +1,12 @@
 name: BTC Power Signal
 
 on:
+  push:                         # deploy immediately on push (GitHub's cron is throttled/unreliable)
+    branches: [main]
+    paths-ignore:
+      - state.json              # the bot's own state commits use [skip ci]; ignore them too
   schedule:
-    - cron: "0 * * * *"        # hourly: daily entry decision + intraday trailing-stop watch
+    - cron: "0 * * * *"        # hourly fallback: daily entry decision + intraday trailing-stop watch
   workflow_dispatch:
 
 permissions:
