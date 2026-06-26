@@ -2,6 +2,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="BTC Power"><meta name="theme-color" content="#0b0e14">
+<meta http-equiv="Cache-Control" content="no-cache, must-revalidate"><meta http-equiv="Pragma" content="no-cache">
 <link rel="manifest" href="manifest.webmanifest"><title>BTC Power Signal</title>
 <style>
 :root{--bg:#0b0e14;--card:#161b26;--ink:#e8edf4;--mut:#8b98a9;--grn:#2bd576;--red:#ff5d5d;--amb:#ffb84d;--blu:#4da3ff;--line:#242c3a;--safe-t:env(safe-area-inset-top);--safe-b:env(safe-area-inset-bottom)}
@@ -94,6 +95,7 @@ canvas{width:100%;height:300px;display:block;border-radius:10px;touch-action:non
     <div class="note" style="margin:0 0 8px">Each = a position the 8B model held until its direction changed. Return shown is the 1× price move; the 8B trades it at 5×.</div>
     <div id="tradelist"></div></div>
 </div>
+<div class="note" style="text-align:center;opacity:.55;margin-top:2px" id="footgen"></div>
 </div>
 <div class="modal" id="tmodal"><div class="sheet">
   <h3 id="tm_title"></h3><div class="sub" id="tm_sub"></div>
@@ -117,6 +119,18 @@ $('pxlive').textContent=f0(D.price);
 async function livePrice(){try{const r=await fetch('https://data-api.binance.vision/api/v3/ticker/price?symbol=BTCUSDT');const j=await r.json();const p=Number(j.price);$('pxlive').textContent=f0(p);
  const t=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});$('livenote').textContent='live $'+f0(p)+' · '+t+' · signal updates daily';}catch(e){$('livenote').textContent='live price unavailable · showing signal close';}}
 livePrice();setInterval(livePrice,3600000);
+// auto-refresh: PWAs cache the HTML — detect a newer deployed build and hard-reload to a
+// cache-busted URL so the home-screen app updates itself (on open, on re-focus, hourly).
+$('footgen').textContent='data built '+(D.generated||'—')+' · auto-updates';
+const EMBED_GEN=D.generated;let _checking=false;
+async function checkFresh(){if(_checking)return;_checking=true;
+ try{const r=await fetch('results_live.json?t='+Date.now(),{cache:'no-store'});const j=await r.json();
+  if(j.generated&&j.generated!==EMBED_GEN){const u=new URL(location.href);
+   if(u.searchParams.get('v')!==j.generated){u.searchParams.set('v',j.generated);location.replace(u.toString());return;}}}
+ catch(e){}finally{_checking=false;}}
+checkFresh();
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkFresh();});
+window.addEventListener('focus',checkFresh);setInterval(checkFresh,1800000);
 // header chip = 8B direction
 const dirc=d=>d==='LONG'?'var(--grn)':(d==='SHORT'?'var(--red)':'var(--mut)');
 const B=D.model_8b,C=D.live,F=D.forecast;
