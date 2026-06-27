@@ -33,6 +33,10 @@ def main(save_as="results_live.json"):
     cap_ta = np.where(aligned, 3.25, 3.0)
     p = os.path.join(HERE, "..", "data", "funding.csv")
     fmap = dict(zip(*[pd.read_csv(p)[c] for c in ["date", "funding_rate"]])) if os.path.exists(p) else {}
+    if not fmap:
+        print("[apex] WARNING: data/funding.csv missing -> VOL+FUND gates DISABLED (results will differ).")
+    elif max(fmap) < dates[-1]:
+        print(f"[apex] note: funding.csv ends {max(fmap)} (latest bar {dates[-1]}) -> recent FUND gates inactive.")
     funding = np.array([fmap.get(d, np.nan) for d in dates])
     vr = trail_rank(rv); fr = trail_rank(funding)
     gl = np.ones(n); gs = np.ones(n)
@@ -116,10 +120,19 @@ def main(save_as="results_live.json"):
                 size_pct=round(min(1.0, abs(e_in[i])) * 100, 0), margin="SPOT 1x — no leverage, cannot be liquidated",
                 cutloss=(round(price * (0.85 if sg2 > 0 else 1.15), 2) if sg2 else None),
                 confidence=round(abs(e_in[i]), 2), take_profit="ride the trend; exit when the ensemble flips / regime changes")
+    natbias = REG_BIAS.get(rgi, "ASIDE"); posbias = "UP" if sg2 > 0 else ("DOWN" if sg2 < 0 else "ASIDE")
+    conflict = bool(sg2) and natbias in ("UP", "DOWN") and natbias != posbias
+    clp = round(price * (0.85 if sg2 > 0 else 1.15), 2) if sg2 else None
+    if not sg2:
+        head = f"{rgi}: no qualifying setup — stand aside."
+    elif conflict:
+        head = (f"Holding {dirn} into a {rgi} market (trailing signal). Manage with the cut-loss "
+                f"${clp:,.0f}; Apex exits when the ensemble flips.")
+    else:
+        head = f"{rgi}: ensemble leans {dirn} (engines {', '.join(engines) or '—'})."
     fc = dict(regime=rgi, engines=engines, direction=dirn,
               bias=("POTENTIAL UP" if sg2 > 0 else ("POTENTIAL DOWN" if sg2 < 0 else "STAND ASIDE")),
-              headline=(f"{rgi}: engines ({', '.join(engines) or '—'}) lean {dirn}." if sg2
-                        else f"{rgi}: no qualifying setup — stand aside."))
+              headline=head)
     s20 = float(df["SMA20"].iloc[i]); s50 = float(df["SMA50"].iloc[i]); s200 = float(df["SMA200"].iloc[i])
     bbu = float(df["BB_Upper"].iloc[i]); bbl = float(df["BB_Lower"].iloc[i])
     out = dict(as_of=dates[i], price=round(price, 2), rsi=round(float(df["RSI"].iloc[i]), 1),

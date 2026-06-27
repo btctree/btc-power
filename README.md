@@ -1,3 +1,31 @@
+> # 🟢 CURRENT LIVE PRODUCT — **Apex**
+>
+> Dashboard: **https://btctree.github.io/btc-power/** · repo `btctree/btc-power` · auto-deploys on
+> push + hourly via `.github/workflows/daily.yml`.
+>
+> **Live pipeline (this is the product — edit carefully):**
+> `src/fetch_data.py` → `src/apex_engine.py` → `src/build_live_dashboard.py` →
+> `src/telegram_signal.py --mode watch`.
+>
+> **Apex** = conviction-filtered regime ensemble · short-selective · turnover-controlled · trend-aligned
+> cap 3.25×/3.0× · vol-targeted · VOL+FUND gates · dd-kill. **@50 bp: $500 → ~$1.2M, −54% DD,
+> 0 liquidations, 204 trades** (Calmar 1.59, Sharpe 1.29, win 40%).
+>
+> 📖 **All models + verified numbers + rejected ideas → [`MODELS_FINDINGS.md`](MODELS_FINDINGS.md).**
+> Excel reports moved to **`../excel_reports/`**.
+>
+> ⚠️ **Telegram action item (yours):** the bot is silent because the **repo Actions secrets are empty**
+> (proven in the CI log; the new `getMe` self-check shows it). Fix once in repo **Settings → Secrets
+> and variables → Actions**: add `TELEGRAM_BOT_TOKEN` (the @Btctree_bot token) and
+> `TELEGRAM_CHAT_ID = 335807883`. Then **rotate** the bot token *and* the GitHub PAT (both were shared
+> in chat).
+>
+> **Research scripts** (`src/analyze_*.py`, `src/build_*.py`) are standalone studies kept in `src/` so
+> their `import live_engine`/`stable_combo` calls resolve — run them from `src/`. Everything below this
+> line is the **historical record** of the earlier systems (consensus → intraday → trend-ride → Apex).
+
+---
+
 # BTC Consensus Signal — backtest & live product
 
 Honest re-build and validation of the 9-strategy BTC signal system from `working.xlsm`,
