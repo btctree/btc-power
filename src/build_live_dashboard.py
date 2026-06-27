@@ -44,7 +44,8 @@ header{position:sticky;top:0;z-index:5;background:linear-gradient(#0b0e14ee,#0b0
 .legend{display:flex;gap:14px;font-size:12px;color:var(--mut);margin:6px 0 10px}.legend b{font-weight:600}
 .scbtns{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
 .scb{font-size:11px;font-weight:700;padding:6px 9px;border-radius:8px;background:#0e131d;border:1px solid var(--line);color:var(--mut)}.scb.on{background:#13324a;color:var(--blu);border-color:var(--blu)}
-canvas{width:100%;height:300px;display:block;border-radius:10px;touch-action:none;background:#0c1018}
+canvas{width:100%;height:300px;display:block;border-radius:10px;touch-action:none;background:#0c1018;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+#p-perf,#p-perf *{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 .ctrls{display:flex;gap:6px;margin-top:8px}.ctrls button{flex:1;font-size:12px;font-weight:600;padding:7px;border-radius:8px;background:#0e131d;border:1px solid var(--line);color:var(--ink)}
 .trade{background:#0e131d;border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:7px;font-size:12px}
 .trade .t1{display:flex;justify-content:space-between;font-weight:700;font-size:13px}.trade .t2{color:var(--mut);margin-top:3px;display:flex;justify-content:space-between}
@@ -64,14 +65,14 @@ canvas{width:100%;height:300px;display:block;border-radius:10px;touch-action:non
 <div class="chip" id="chip"></div></header>
 
 <div class="pane on" id="p-signal">
-  <div class="card feat"><div class="h">⚡ 8B Model · 5× leverage</div>
+  <div class="card feat"><div class="h">⚡ Apex Model · trend-aligned · vol-targeted</div>
     <div class="big" id="b8_action"></div>
     <div class="row"><span class="k">Market type</span><span class="v" id="b8_regime"></span></div>
     <div class="row"><span class="k">Engines</span><span class="v" id="b8_eng"></span></div>
     <div class="row"><span class="k">Confidence</span><span class="v" id="b8_conf"></span></div>
     <div class="row"><span class="k">Margin used</span><span class="v" id="b8_margin"></span></div>
-    <div class="row"><span class="k">Cut-loss (pre-set, −15%)</span><span class="v amb" id="b8_cut"></span></div>
-    <div class="row"><span class="k">Liquidation (−20%)</span><span class="v" id="b8_liq"></span></div>
+    <div class="row"><span class="k">Cut-loss (−15%)</span><span class="v amb" id="b8_cut"></span></div>
+    <div class="row"><span class="k">Liquidation</span><span class="v" id="b8_liq"></span></div>
     <div class="risknote" id="b8_note"></div>
   </div>
   <div class="card"><div class="h">Core · spot 1× (safer, same direction)</div>
@@ -100,16 +101,16 @@ canvas{width:100%;height:300px;display:block;border-radius:10px;touch-action:non
   <div class="card"><div class="h">Equity from $500 — drag to pan · pinch/wheel zoom · tap a point</div>
     <div class="scbtns" id="scbtns"></div>
     <canvas id="chart"></canvas>
-    <div class="legend" style="margin-top:6px"><span><b style="color:var(--grn)">▲</b> long entry</span><span><b style="color:var(--red)">▼</b> short entry</span><span class="mut">tap a Trade to pin it here</span></div>
-    <div class="ctrls"><button onclick="zoomBtn(0.7)">＋</button><button onclick="zoomBtn(1.4)">－</button><button onclick="toggleScale()" id="scaleBtn">Log</button><button onclick="toggleMarks()" id="markBtn">Marks ○</button><button onclick="resetView()">Reset</button></div>
+    <div class="legend" style="margin-top:6px;flex-wrap:wrap"><span><b style="color:var(--grn)">▲</b> enter long</span><span><b style="color:var(--red)">▼</b> enter short</span><span><b style="color:var(--grn)">△</b><b style="color:var(--red)">▽</b> exit</span><span class="mut">tap a Trade to pin</span></div>
+    <div class="ctrls"><button onclick="zoomBtn(0.7)">＋</button><button onclick="zoomBtn(1.4)">－</button><button onclick="toggleScale()" id="scaleBtn">Log</button><button onclick="toggleMarks()" id="markBtn">Marks ●</button><button onclick="resetView()">Reset</button></div>
     <div class="row" style="margin-top:8px"><span class="k">Final $500→</span><span class="v" id="m_final"></span></div>
     <div class="row"><span class="k">CAGR / maxDD</span><span class="v" id="m_cd"></span></div>
   </div>
 </div>
 
 <div class="pane" id="p-trades">
-  <div class="card"><div class="h">8B model — recent 20 actions (entry → exit)</div>
-    <div class="note" style="margin:0 0 8px">Each = a position the 8B model held until its direction changed. Return shown is the 1× price move; the 8B trades it at 5×.</div>
+  <div class="card"><div class="h">Apex — recent 20 positions (entry → exit)</div>
+    <div class="note" style="margin:0 0 8px">Each = a position Apex held until its direction changed. % = the live model's realized equity return (after slippage). The top row is the <b>current open position</b> — it shows the latest price and a running return, no exit yet.</div>
     <div id="tradelist"></div></div>
 </div>
 <div class="note" style="text-align:center;opacity:.55;margin-top:2px" id="footgen"></div>
@@ -134,7 +135,7 @@ $('asof').textContent=D.as_of;$('pxsig').textContent='signal close $'+f0(D.price
 $('pxlive').textContent=f0(D.price);
 // live price (hourly+) client-side
 async function livePrice(){try{const r=await fetch('https://data-api.binance.vision/api/v3/ticker/price?symbol=BTCUSDT');const j=await r.json();const p=Number(j.price);$('pxlive').textContent=f0(p);
- const t=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});$('livenote').textContent='live $'+f0(p)+' · '+t+' · signal updates daily';}catch(e){$('livenote').textContent='live price unavailable · showing signal close';}}
+ const t=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});$('livenote').textContent='live $'+f0(p)+' · '+t+' · signal updates daily';try{updOpen(p);}catch(e){}}catch(e){$('livenote').textContent='live price unavailable · showing signal close';}}
 livePrice();setInterval(livePrice,3600000);
 // auto-refresh: PWAs cache the HTML — detect a newer deployed build and hard-reload to a
 // cache-busted URL so the home-screen app updates itself (on open, on re-focus, hourly).
@@ -150,8 +151,8 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkFresh
 window.addEventListener('focus',checkFresh);setInterval(checkFresh,1800000);
 // header chip = 8B direction
 const dirc=d=>d==='LONG'?'var(--grn)':(d==='SHORT'?'var(--red)':'var(--mut)');
-const B=D.model_8b,C=D.live,F=D.forecast;
-const chip=$('chip');chip.textContent='8B: '+B.action;chip.style.background=dirc(B.direction)+'22';chip.style.color=dirc(B.direction);
+const B=D.model_apex||D.model_8b,C=D.live,F=D.forecast;
+const chip=$('chip');chip.textContent='Apex: '+B.action;chip.style.background=dirc(B.direction)+'22';chip.style.color=dirc(B.direction);
 // 8B card
 $('b8_action').textContent=B.action;$('b8_action').style.color=dirc(B.direction);
 $('b8_regime').textContent=B.regime;$('b8_eng').textContent=(B.engines||[]).join(', ')||'—';
@@ -170,22 +171,32 @@ $('f_head').textContent=F.headline;$('f_regime').textContent=F.regime;$('f_eng')
 const BCOL={UP:'var(--grn)',DOWN:'var(--red)',ASIDE:'var(--mut)'};const BTXT={UP:'long',DOWN:'short',ASIDE:'stand aside'};
 $('rmap').innerHTML=Object.entries(D.regime_bias).map(([k,b])=>`<div class="row"><span class="k">${k}</span><span class="v" style="color:${BCOL[b]}">● ${BTXT[b]}</span></div>`).join('');
 // trades (tap a row -> detail popup + jump to chart)
-$('tradelist').innerHTML=D.recent_trades.map((t,k)=>{const c=t.direction==='LONG'?'var(--grn)':'var(--red)';const rc=t.ret>=0?'pos':'neg';
- return `<div class="trade" onclick="openTrade(${k})"><div class="t1"><span style="color:${c}">${t.direction} · ${t.strategy}</span><span class="${rc}">${(t.ret*100).toFixed(1)}%</span></div>
+const tret=t=>(t.apex_ret!=null?t.apex_ret:t.ret);
+$('tradelist').innerHTML=D.recent_trades.map((t,k)=>{const c=t.direction==='LONG'?'var(--grn)':'var(--red)';const r=tret(t);const rc=r>=0?'pos':'neg';
+ if(t.open) return `<div class="trade" onclick="openTrade(${k})" style="border-color:var(--blu)"><div class="t1"><span style="color:${c}">● CURRENT · ${t.direction} · ${t.strategy}</span><span class="${rc}" id="open_ret">${(r*100).toFixed(1)}%</span></div>
+ <div class="t2"><span>open since ${t.entry_dt}</span><span>${t.market}</span></div>
+ <div class="t2"><span>in $${f0(t.entry)} · now $<span id="open_now">${f0(D.price)}</span></span><span>running · open ›</span></div></div>`;
+ return `<div class="trade" onclick="openTrade(${k})"><div class="t1"><span style="color:${c}">${t.direction} · ${t.strategy}</span><span class="${rc}">${(r*100).toFixed(1)}%</span></div>
  <div class="t2"><span>${t.entry_dt} → ${t.exit_dt}</span><span>${t.market}</span></div>
  <div class="t2"><span>in $${f0(t.entry)} · out $${f0(t.exit)}</span><span>${t.reason} ›</span></div></div>`}).join('');
+// keep the open position's "now" price + running return fresh with the live price
+function updOpen(p){const t=D.recent_trades.find(x=>x.open);if(!t)return;const nb=$('open_now');if(nb)nb.textContent=f0(p);
+ const rb=$('open_ret');if(!rb)return;const dir=t.direction==='LONG'?1:-1;const expm=(D.model_apex&&D.model_apex.exposure_mult)||1;
+ const base=(t.apex_ret!=null?t.apex_ret:0),since=(p/D.price-1)*dir*expm,r=(1+base)*(1+since)-1;
+ rb.textContent=(r*100).toFixed(1)+'%';rb.className=r>=0?'pos':'neg';}
+updOpen(D.price);
 // trade detail popup: 1x (spot) vs 5x (8B) return + jump-to-chart
 function tradeIdx(t){if(t.idx!=null)return t.idx;const i=D.dates.indexOf(t.entry_dt);return i>=0?i:null;}
 function openTrade(k){const t=D.recent_trades[k];const c=t.direction==='LONG'?'var(--grn)':'var(--red)';
- const r1=t.ret,r5=Math.max(-1,t.ret*5),liq=t.ret<=-0.20;
- $('tm_title').innerHTML=`<span style="color:${c}">${t.direction} · ${t.strategy}</span>`;
- $('tm_sub').textContent=t.market+' · '+t.entry_dt+' → '+t.exit_dt;
+ const r1=t.ret,ra=(t.apex_ret!=null?t.apex_ret:t.ret);
+ $('tm_title').innerHTML=`<span style="color:${c}">${t.open?'● CURRENT · ':''}${t.direction} · ${t.strategy}</span>`;
+ $('tm_sub').textContent=t.market+' · '+t.entry_dt+(t.open?' → now (open)':' → '+t.exit_dt);
  $('tm_body').innerHTML=[
    ['Entry',`$${f0(t.entry)} · ${t.entry_dt}`],
-   ['Exit',`$${f0(t.exit)} · ${t.exit_dt}`],
-   ['Return · spot 1×',`<span class="${r1>=0?'pos':'neg'}">${(r1*100).toFixed(1)}%</span>`],
-   ['Return · 8B 5×',`<span class="${r5>=0?'pos':'neg'}">${(r5*100).toFixed(1)}%${liq?' ⚠ liquidated':''}</span>`],
-   ['Exit reason',t.reason]
+   [t.open?'Now (last close)':'Exit',t.open?`$${f0(D.price)} · ${D.as_of}`:`$${f0(t.exit)} · ${t.exit_dt}`],
+   ['Spot 1× move',`<span class="${r1>=0?'pos':'neg'}">${(r1*100).toFixed(1)}%</span>`],
+   [t.open?'Apex return (running)':'Apex return (realized)',`<span class="${ra>=0?'pos':'neg'}">${(ra*100).toFixed(1)}%</span>`],
+   ['Status',t.reason]
  ].map(([a,b])=>`<div class="row"><span class="k">${a}</span><span class="v">${b}</span></div>`).join('');
  const ix=tradeIdx(t);$('tm_jump').onclick=()=>{closeModal();jumpToTrade(ix);};
  $('tm_jump').style.opacity=ix==null?0.4:1;
@@ -195,8 +206,8 @@ $('tmodal').addEventListener('click',e=>{if(e.target.id==='tmodal')closeModal();
 function jumpToTrade(idx){if(idx==null)return;pinned=idx;const half=120,L=D.dates.length-1;
  view.a=Math.max(0,idx-half);view.b=Math.min(L,idx+half);switchTab('perf');}
 // ---- interactive chart ----
-const SC=Object.keys(D.scenarios);let scenario=SC.includes('Lev 5x growth')?'Lev 5x growth':SC[0];
-let logScale=true,view={a:0,b:D.dates.length-1},hover=null,showMarks=false,pinned=null;
+const SC=Object.keys(D.scenarios);let scenario=SC.includes('Apex @50bp')?'Apex @50bp':SC[0];
+let logScale=true,view={a:0,b:D.dates.length-1},hover=null,showMarks=true,pinned=null;
 $('scbtns').innerHTML=SC.map(s=>`<div class="scb${s===scenario?' on':''}" data-sc="${s}">${s}</div>`).join('');
 document.querySelectorAll('.scb').forEach(b=>b.onclick=()=>{scenario=b.dataset.sc;document.querySelectorAll('.scb').forEach(x=>x.classList.toggle('on',x.dataset.sc===scenario));updM();draw();});
 function updM(){const m=D.scenarios[scenario].metrics;$('m_final').textContent='$'+f0(m.final);$('m_cd').textContent=fp(m.cagr)+' / '+fp(m.maxdd);}
@@ -216,8 +227,12 @@ function draw(){const cv=$('chart');if(!cv.clientWidth)return;const dpr=window.d
  else{for(let g=0;g<=4;g++){const v=lo+(hi-lo)*g/4,y=py(v);x.beginPath();x.moveTo(PL,y);x.lineTo(W-PR,y);x.stroke();x.fillText('$'+f0(v),3,y-2);}}
  x.fillStyle='#6b7787';[a,Math.floor((a+b)/2),b].forEach(i=>x.fillText((D.dates[i]||'').slice(0,7),Math.min(W-40,Math.max(PL,px(i)-16)),H-4));
  x.strokeStyle='#2bd576';x.lineWidth=1.8;x.beginPath();let st=false;for(let i=a;i<=b;i++){const v=eq[i];if(v<=0)continue;i&&st?x.lineTo(px(i),py(v)):x.moveTo(px(i),py(v));st=true;}x.stroke();
- // 8B action markers (green ▲ = long entry, red ▼ = short entry) — off by default, de-cluttered when on
- if(showMarks&&D.trade_markers){let lastX=-99;D.trade_markers.forEach(mk=>{const ix=mk.i;if(ix<a||ix>b)return;const v=eq[ix];if(v<=0)return;const X=px(ix);if(X-lastX<16)return;lastX=X;const Y=py(v);x.fillStyle=mk.d>0?'#2bd576':'#ff5d5d';x.beginPath();if(mk.d>0){x.moveTo(X,Y-7);x.lineTo(X-4,Y-1);x.lineTo(X+4,Y-1);}else{x.moveTo(X,Y+7);x.lineTo(X-4,Y+1);x.lineTo(X+4,Y+1);}x.closePath();x.fill();});}
+ // Apex markers — solid ▲/▼ = ENTER (green long / red short), hollow △/▽ = EXIT (paired); de-cluttered
+ if(showMarks&&D.trade_markers){let lin=-99,lout=-99;D.trade_markers.forEach(mk=>{const ix=mk.i;if(ix<a||ix>b)return;const v=eq[ix];if(v<=0)return;const X=px(ix);const out=mk.t==='out';
+   if(out){if(X-lout<12)return;lout=X;}else{if(X-lin<12)return;lin=X;}
+   const Y=py(v),col=mk.d>0?'#2bd576':'#ff5d5d';x.beginPath();
+   if(mk.d>0){x.moveTo(X,Y-12);x.lineTo(X-5,Y-3);x.lineTo(X+5,Y-3);}else{x.moveTo(X,Y+12);x.lineTo(X-5,Y+3);x.lineTo(X+5,Y+3);}
+   x.closePath();if(out){x.fillStyle='#0c1018';x.fill();x.strokeStyle=col;x.lineWidth=1.6;x.stroke();}else{x.fillStyle=col;x.fill();}});}
  // pinned trade (from the Trades tab) — amber dashed line + dot, always shown
  if(pinned!=null&&pinned>=a&&pinned<=b){const v=eq[pinned];if(v>0){const X=px(pinned),Y=py(v);x.strokeStyle='#ffb84d';x.lineWidth=1.5;x.setLineDash([3,3]);x.beginPath();x.moveTo(X,PT);x.lineTo(X,H-PB);x.stroke();x.setLineDash([]);x.fillStyle='#ffb84d';x.beginPath();x.arc(X,Y,5,0,7);x.fill();x.strokeStyle='#0c1018';x.lineWidth=2;x.stroke();}}
  // hover tooltip
