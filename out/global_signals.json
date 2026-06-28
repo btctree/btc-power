@@ -1,0 +1,89 @@
+{
+ "as_of": "2026-06-28",
+ "signals": [
+  {
+   "product": "US-SPY",
+   "region": "US",
+   "signal": "LONG",
+   "size_pct": 5.0,
+   "regime": "TREND_DOWN"
+  },
+  {
+   "product": "US-QQQ",
+   "region": "US",
+   "signal": "LONG",
+   "size_pct": 26.0,
+   "regime": "TREND_DOWN"
+  },
+  {
+   "product": "HK-EWH",
+   "region": "HK",
+   "signal": "LONG",
+   "size_pct": 0.0,
+   "regime": "TREND_DOWN"
+  },
+  {
+   "product": "JP-EWJ",
+   "region": "JP",
+   "signal": "LONG",
+   "size_pct": 37.0,
+   "regime": "CHOP_HIVOL"
+  },
+  {
+   "product": "EU-VGK",
+   "region": "EU",
+   "signal": "FLAT",
+   "size_pct": 0.0,
+   "regime": "CHOP_HIVOL"
+  },
+  {
+   "product": "EU-EWG",
+   "region": "EU",
+   "signal": "LONG",
+   "size_pct": 11.0,
+   "regime": "TREND_DOWN"
+  },
+  {
+   "product": "Gold-GLD",
+   "region": "Commod",
+   "signal": "LONG",
+   "size_pct": 69.0,
+   "regime": "TREND_DOWN"
+  },
+  {
+   "product": "Silver-SLV",
+   "region": "Commod",
+   "signal": "LONG",
+   "size_pct": 15.0,
+   "regime": "TREND_DOWN"
+  },
+  {
+   "product": "Oil-USO",
+   "region": "Commod",
+   "signal": "FLAT",
+   "size_pct": 0.0,
+   "regime": "TREND_DOWN"
+  },
+  {
+   "product": "Bond-TLT",
+   "region": "Bond",
+   "signal": "FLAT",
+   "size_pct": 0.0,
+   "regime": "RANGE"
+  },
+  {
+   "product": "BTC",
+   "region": "Crypto",
+   "signal": "SHORT",
+   "size_pct": 47.0,
+   "regime": "STRONG_DOWN"
+  },
+  {
+   "product": "ETH",
+   "region": "Crypto",
+   "signal": "LONG",
+   "size_pct": 3.0,
+   "regime": "TREND_DOWN"
+  }
+ ]
+}
