@@ -118,7 +118,9 @@ def daily_report(d, url):
         lines.append(f"<b>Growth A backtest</b> $500→${head['final']:,.0f} @50bp · maxDD {head['maxdd']*100:.0f}%{sp}")
     if url:
         lines += ["", f"📱 {url}"]
-    lines += ["", "<i>Growth A uses up to ~5× effective leverage (can be liquidated on a large adverse gap); "
+    lines += ["", "⏱ <i>Signal decided at the daily close (UTC); entry/exit alerts within ~1h of close at that "
+              "close price; cut-loss watched hourly intraday.</i>",
+              "", "<i>Growth A uses up to ~5× effective leverage (can be liquidated on a large adverse gap); "
               "deep drawdowns and losing years happen (2018/2022/2025 in backtest). Spot 1× cannot be "
               "liquidated. Hypothetical; not financial advice.</i>"]
     return "\n".join(lines)
@@ -128,7 +130,7 @@ def entry_msg(B, price):
     de = "🟢 LONG" if B["direction"] == "LONG" else "🔴 SHORT"
     liqs = f" · liquidation ${B['liquidation']:,.0f}" if B.get("liquidation") else ""
     return (f"<b>⚡ BTC POWER — ENTER {de} (Growth A)</b>\n"
-            f"Price <b>${price:,.0f}</b> · {B['regime']} · engines {', '.join(B['engines']) or '—'}\n"
+            f"Price <b>${price:,.0f}</b> (daily close = signal price) · {B['regime']} · engines {', '.join(B['engines']) or '—'}\n"
             f"Confidence {B['confidence']} · effective {B.get('exposure_mult', 0):.1f}× · margin {B['margin_pct']:.0f}%\n"
             f"🛑 <b>Cut-loss ${B['cutloss']:,.0f}</b> (−15%){liqs}\n"
             f"<i>Place a resting stop at the cut-loss to cap the downside.</i>")
@@ -169,13 +171,14 @@ def main():
         if hit:
             tg(exit_msg(s, s["cutloss"], "cut-loss hit"))
             s = {"direction": "FLAT", "entry": None, "cutloss": None, "last_report_date": s["last_report_date"]}
-    # 2) Growth A signal change (entry / exit / flip)
+    # 2) Growth A signal change (entry / exit / flip) — priced at the DAILY CLOSE the signal was
+    #    decided on (d["price"]), not the intraday live price (that's only for the cut-loss watch)
     if cur != s["direction"]:
         if s["direction"] in ("LONG", "SHORT"):
-            tg(exit_msg(s, price, "Growth A signal flipped to " + cur))
+            tg(exit_msg(s, d["price"], "Growth A signal flipped to " + cur))
         if cur in ("LONG", "SHORT"):
-            tg(entry_msg(B, price))
-            s.update(direction=cur, entry=price, cutloss=B["cutloss"])
+            tg(entry_msg(B, d["price"]))
+            s.update(direction=cur, entry=d["price"], cutloss=B["cutloss"])
         else:
             s.update(direction="FLAT", entry=None, cutloss=None)
     # 3) once-a-day full report

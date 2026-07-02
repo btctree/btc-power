@@ -70,9 +70,10 @@ canvas{width:100%;height:300px;display:block;border-radius:10px;touch-action:non
     <div class="row"><span class="k">Market type</span><span class="v" id="b8_regime"></span></div>
     <div class="row"><span class="k">Engines</span><span class="v" id="b8_eng"></span></div>
     <div class="row"><span class="k">Confidence</span><span class="v" id="b8_conf"></span></div>
-    <div class="row"><span class="k">Margin used</span><span class="v" id="b8_margin"></span></div>
-    <div class="row"><span class="k">Cut-loss (−15%)</span><span class="v amb" id="b8_cut"></span></div>
-    <div class="row"><span class="k">Liquidation</span><span class="v" id="b8_liq"></span></div>
+    <div class="row"><span class="k">Position entry</span><span class="v" id="b8_entry"></span></div>
+    <div class="row"><span class="k">Margin used (setting 5×)</span><span class="v" id="b8_margin"></span></div>
+    <div class="row"><span class="k">Cut-loss (entry −15%)</span><span class="v amb" id="b8_cut"></span></div>
+    <div class="row"><span class="k">Liquidation (from entry)</span><span class="v" id="b8_liq"></span></div>
     <div class="risknote" id="b8_note"></div>
   </div>
   <div class="card"><div class="h">Core · spot 1× (safer, same direction)</div>
@@ -82,6 +83,9 @@ canvas{width:100%;height:300px;display:block;border-radius:10px;touch-action:non
     <div class="row"><span class="k">Cut-loss</span><span class="v amb" id="c_cut"></span></div>
   </div>
   <div class="card"><div class="h">Key levels</div><div class="lvl" id="levels"></div></div>
+  <div class="card"><div class="h">⏱ When signals happen</div>
+    <div class="note" style="margin-top:0">The signal is decided on the <b>daily close (00:00 UTC)</b> and the action price = that close — the position and its cut-loss/liquidation are <b>fixed from entry</b> and do not re-price each day. Entry/exit alerts go out within ~1h of the close; the <b>cut-loss is watched hourly intraday</b> (an alert fires if the live price breaches it). The header's live price is for reference only.</div>
+  </div>
 </div>
 
 <div class="pane" id="p-forecast">
@@ -102,6 +106,7 @@ canvas{width:100%;height:300px;display:block;border-radius:10px;touch-action:non
     <div class="scbtns" id="scbtns"></div>
     <canvas id="chart"></canvas>
     <div class="legend" style="margin-top:6px;flex-wrap:wrap"><span><b style="color:var(--grn)">▲</b> enter long</span><span><b style="color:var(--red)">▼</b> enter short</span><span><b style="color:var(--grn)">△</b><b style="color:var(--red)">▽</b> exit</span><span class="mut">tap a Trade to pin</span></div>
+    <div class="ctrls"><button onclick="setRange(365)">1Y</button><button onclick="setRange(1095)">3Y</button><button onclick="setRange(1825)">5Y</button><button onclick="setRange(0)">All</button></div>
     <div class="ctrls"><button onclick="zoomBtn(0.7)">＋</button><button onclick="zoomBtn(1.4)">－</button><button onclick="toggleScale()" id="scaleBtn">Log</button><button onclick="toggleMarks()" id="markBtn">Marks ●</button><button onclick="resetView()">Reset</button></div>
     <div class="row" style="margin-top:8px"><span class="k">Final $500→</span><span class="v" id="m_final"></span></div>
     <div class="row"><span class="k">CAGR / maxDD</span><span class="v" id="m_cd"></span></div>
@@ -157,6 +162,7 @@ const chip=$('chip');chip.textContent='Growth A: '+B.action;chip.style.backgroun
 $('b8_action').textContent=B.action;$('b8_action').style.color=dirc(B.direction);
 $('b8_regime').textContent=B.regime;$('b8_eng').textContent=(B.engines||[]).join(', ')||'—';
 $('b8_conf').textContent=B.confidence+(B.conviction_ok?'':' (below 0.40 → flat)');
+$('b8_entry').textContent=B.entry_price?('$'+f0(B.entry_price)+' · '+(B.entry_date||'')):'—';
 $('b8_margin').textContent=B.margin_pct+'% of equity';$('b8_cut').textContent=B.cutloss?('$'+f0(B.cutloss)):'—';
 $('b8_liq').textContent=B.liquidation?('$'+f0(B.liquidation)):'—';$('b8_note').textContent='ℹ️ '+B.note;
 // core card
@@ -215,6 +221,7 @@ function zoomBtn(f){const c=(view.a+view.b)/2,w=(view.b-view.a)*f/2;view.a=Math.
 function toggleScale(){logScale=!logScale;$('scaleBtn').textContent=logScale?'Log':'Lin';draw();}
 function toggleMarks(){showMarks=!showMarks;$('markBtn').textContent=showMarks?'Marks ●':'Marks ○';draw();}
 function resetView(){view={a:0,b:D.dates.length-1};hover=null;pinned=null;draw();}
+function setRange(d){const L=D.dates.length-1;view=d?{a:Math.max(0,L-d),b:L}:{a:0,b:L};hover=null;draw();}
 function draw(){const cv=$('chart');if(!cv.clientWidth)return;const dpr=window.devicePixelRatio||1,W=cv.clientWidth,H=300;
  cv.width=W*dpr;cv.height=H*dpr;const x=cv.getContext('2d');x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,W,H);
  const eq=D.scenarios[scenario].eq,a=Math.max(0,Math.floor(view.a)),b=Math.min(eq.length-1,Math.ceil(view.b));

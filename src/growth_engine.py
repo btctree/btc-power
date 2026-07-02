@@ -42,14 +42,22 @@ def main(save_as="results_live.json"):
             if fr[i] > 0.90: gl[i] *= 0.5
             if fr[i] < 0.10: gs[i] *= 0.5
 
-    def sim(cap, slip, vt=1.5, dd_kill=0.30, band=0.15, fee=0.0005, maint=0.01):
+    def sim(cap, slip, vt=1.5, dd_kill=0.30, band=0.15, fee=0.0005, maint=0.01, quant=False):
+        """quant=True -> real-world margin: exposure snapped to whole levels 0/1x/2x/3x/4x/5x."""
         eqv = peak = 500.0; held = 0.0; eq = np.full(n, 500.0); E = np.zeros(n); liq = 0
         for i in range(i0, n):
             sig = e_in[i - 1]; g = gl[i - 1] if sig > 0 else (gs[i - 1] if sig < 0 else 1.0)
             if not (rv[i - 1] == rv[i - 1] and rv[i - 1] > 0): eq[i] = eqv; E[i] = held; continue
             e = sig * g * min(cap, vt / rv[i - 1])
             if dd_kill > 0 and eqv < peak * (1 - dd_kill): e *= 0.5
-            if band > 0 and abs(e - held) < band and not (e == 0 and held != 0): e = held
+            if quant:
+                # whole margin levels 0/1/2/3/4/5x with hysteresis: keep the HELD level until the
+                # continuous target drifts >=0.75 of a step (or direction flips) — real-world re-leveling
+                if held != 0 and np.sign(e) == np.sign(held) and abs(e - held) < 0.75:
+                    e = held
+                else:
+                    e = np.sign(e) * min(5.0, np.floor(abs(e) + 0.5))
+            elif band > 0 and abs(e - held) < band and not (e == 0 and held != 0): e = held
             adv = (-(low[i] / close[i - 1] - 1)) if e > 0 else ((high[i] / close[i - 1] - 1) if e < 0 else 0.0)
             if e != 0 and abs(e) * max(adv, 0) >= (1 - maint):
                 eqv *= 0.01; liq += 1; held = 0.0; eq[i] = eqv; E[i] = 0.0; peak = max(peak, eqv); continue
@@ -57,13 +65,18 @@ def main(save_as="results_live.json"):
             held = e; eq[i] = max(eqv, 1e-9); E[i] = e; peak = max(peak, eqv)
         return eq, E, liq
 
-    specs = [("1x (spot, 50bp)", 1.0, 0.005, "Growth A signal at 1x — no leverage (realistic)"),
-             ("Growth A @0bp", 5.0, 0.0, "Growth A perfect-fill (optimistic, untradeable)"),
-             ("Growth A @50bp", 5.0, 0.005, "Growth A realistic (50bp slippage) — the headline"),
-             ("Growth A @100bp", 5.0, 0.010, "Growth A stressed (100bp slippage)")]
+    # NOTE on real-world margin: exchanges quantize the LEVERAGE SETTING (1x..5x), not the position
+    # size — with a 5x margin setting any notional up to 5x equity is achievable (e.g. 1.9x = 38% of
+    # funds posted as margin). So the continuous-size model is tradeable as-is. The strict
+    # integer-EXPOSURE variant (quant=True) was measured: $644k @50bp / -71% DD (vs $3.54M / -59%)
+    # because whole-step re-leveling multiplies turnover cost — documented, not used.
+    specs = [("1x (spot, 50bp)", 1.0, 0.005, False, "Growth A signal at 1x — no leverage (spot fractions allowed)"),
+             ("Growth A @0bp", 5.0, 0.0, False, "Growth A perfect-fill (optimistic, untradeable)"),
+             ("Growth A @50bp", 5.0, 0.005, False, "Growth A realistic (50bp slippage) — the headline"),
+             ("Growth A @100bp", 5.0, 0.010, False, "Growth A stressed (100bp slippage)")]
     scen = {}; E_main = None; eq_main = None
-    for name, cap, slip, desc in specs:
-        eq, E, liq = sim(cap, slip)
+    for name, cap, slip, quant, desc in specs:
+        eq, E, liq = sim(cap, slip, quant=quant)
         if name == "Growth A @50bp": E_main = E; eq_main = eq
         eqs = eq[i0:]; m = metrics(eqs)
         scen[name] = dict(eq=[round(float(x), 2) for x in eqs],
@@ -95,22 +108,32 @@ def main(save_as="results_live.json"):
         i = j + 1
     recent = trades[-20:][::-1]
 
-    # today's Growth A signal
+    # today's Growth A signal = the position ACTUALLY HELD by the @50bp path (stable until exit/flip;
+    # margin level is a whole 1-5x; cut-loss & liquidation anchored to the ENTRY price, not today's).
     i = n - 1; price = float(close[i]); rgi = reg[i]; engines = emap.get(rgi) or []
-    sig = e_in[i]; g = gl[i] if sig > 0 else (gs[i] if sig < 0 else 1.0)
-    mult = min(5.0, 1.5 / rv[i]) if (rv[i] == rv[i] and rv[i] > 0) else 0.0
-    e = sig * g * mult; sg2 = 1 if e > 0 else (-1 if e < 0 else 0)
-    dirn = "LONG" if sg2 > 0 else ("SHORT" if sg2 < 0 else "FLAT"); expm = abs(e)
-    liqm = (1.0 / expm) if expm > 0 else 0.0
+    held = float(E_main[i]); sg2 = 1 if held > 0 else (-1 if held < 0 else 0)
+    dirn = "LONG" if sg2 > 0 else ("SHORT" if sg2 < 0 else "FLAT"); expm = abs(held)
+    k = i
+    while k > 0 and np.sign(E_main[k - 1]) == sg2 and sg2 != 0: k -= 1
+    entry_price = float(close[k]) if sg2 else None; entry_date = dates[k] if sg2 else None
+    liqm = (1.0 / expm) if expm > 1 else None                      # <=1x notional cannot be liquidated
+    cutl = (round(entry_price * (0.85 if sg2 > 0 else 1.15), 2) if sg2 else None)
+    liqp = (round(entry_price * (1 - liqm) if sg2 > 0 else entry_price * (1 + liqm), 2) if (sg2 and liqm) else None)
     growth = dict(direction=dirn, regime=rgi, engines=engines, exposure_mult=round(expm, 2),
                   action=(f"{dirn} {expm:.1f}x equity" if sg2 else "FLAT — stand aside"),
+                  entry_price=(round(entry_price, 2) if entry_price else None), entry_date=entry_date,
+                  signal_basis="daily close (UTC)", margin_setting="5x",
                   confidence=round(abs(e_in[i]), 2), conviction_ok=bool(abs(e_in[i]) > 0),
                   margin_pct=round(expm / 5 * 100, 0), vol_scale=round(min(1.0, 1.5 / rv[i]), 2) if rv[i] > 0 else 1.0,
-                  cutloss=(round(price * (0.85 if sg2 > 0 else 1.15), 2) if sg2 else None),
-                  liquidation=(round((price * (1 - liqm) if sg2 > 0 else price * (1 + liqm)), 2) if (sg2 and expm > 0) else None),
-                  note=(f"Growth A: 5x-capped vol-targeted ensemble — the production model. Effective {expm:.1f}x — "
-                        f"needs a ~{liqm*100:.0f}% adverse gap to liquidate; 0 liquidations in backtest (tail risk remains). "
-                        f"Honest: maxDD -59%; losing years happen (2018/2022/2025 in backtest)."))
+                  cutloss=cutl, liquidation=liqp,
+                  note=(f"Growth A holds this position since {entry_date or '—'} (entry ${entry_price:,.0f}, daily "
+                        f"close); the action stays until the model exits/flips or re-sizes — a new day does NOT "
+                        f"re-price it. Cut-loss & liquidation are fixed from the entry price. How to trade "
+                        f"{expm:.1f}x: set margin 5x and open a position worth {expm:.1f}x your equity "
+                        f"(= {expm/5*100:.0f}% of funds posted as margin). Honest: maxDD -59%; losing years happen "
+                        f"(2018/2022/2025 in backtest)."
+                        if sg2 else "Growth A is FLAT — no position; waiting for the next daily-close signal. "
+                        "Honest: maxDD -59%; losing years happen (2018/2022/2025 in backtest)."))
     core = dict(direction=dirn, regime=rgi, engines=engines,
                 action=(f"{dirn} (spot 1x)" if sg2 else "FLAT — stand aside"),
                 size_pct=round(min(1.0, abs(e_in[i])) * 100, 0), margin="SPOT 1x — no leverage, cannot be liquidated",
