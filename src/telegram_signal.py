@@ -1,8 +1,8 @@
-"""Telegram bot for BTC Power Signal — tracks the deployed APEX model.
+"""Telegram bot for BTC Power Signal — tracks the deployed GROWTH A model (production).
 
 Modes:
-  --mode daily   full report (Apex signal + core + forecast + levels).
-  --mode watch   hourly: alert on a NEW Apex signal (entry/exit/flip) or an intraday
+  --mode daily   full report (Growth A signal + core + forecast + levels).
+  --mode watch   hourly: alert on a NEW Growth A signal (entry/exit/flip) or an intraday
                  cut-loss breach; once a day also sends the full report. State persisted
                  in ../state.json so an alert fires only on a transition (no spam).
   --selftest     verify the deployed token (getMe) AND send a one-off test message.
@@ -93,18 +93,18 @@ def load_state():
 
 
 def _model(d):
-    return d.get("model_apex") or d["model_8b"]
+    return d.get("model_growth") or d.get("model_apex") or d["model_8b"]
 
 
 def daily_report(d, url):
     C = d["live"]; B = _model(d); F = d["forecast"]; lv = d["levels"]
-    head = d["scenarios"].get("Apex @50bp", {}).get("metrics", {})
+    head = d["scenarios"].get("Growth A @50bp", d["scenarios"].get("Apex @50bp", {})).get("metrics", {})
     spot = d["scenarios"].get("1x (spot, 50bp)", {}).get("metrics", {})
     de = {"LONG": "🟢", "SHORT": "🔴", "FLAT": "⚪"}.get(B["direction"], "⚪")
     lines = [f"<b>⚡ BTC POWER SIGNAL — {d['as_of']}</b>",
              f"Price <b>${d['price']:,.0f}</b> · RSI {d['rsi']}",
-             f"{de} <b>Apex: {B['action']}</b>", "",
-             "<b>Apex model · trend-aligned · vol-targeted</b>",
+             f"{de} <b>Growth A: {B['action']}</b>", "",
+             "<b>Growth A model · 5× vol-targeted</b>",
              f"• Market {B['regime']} · engines {', '.join(B['engines']) or '—'} · confidence {B['confidence']}"]
     if B.get("cutloss"):
         liqs = f" · liquidation ${B['liquidation']:,.0f}" if B.get("liquidation") else ""
@@ -115,18 +115,19 @@ def daily_report(d, url):
               f"<b>Levels</b> S20 ${lv['sma20']:,.0f} · S50 ${lv['sma50']:,.0f} · S200 ${lv['sma200']:,.0f}"]
     if head:
         sp = f" · spot 1× ${spot['final']:,.0f}" if spot else ""
-        lines.append(f"<b>Apex backtest</b> $500→${head['final']:,.0f} @50bp · maxDD {head['maxdd']*100:.0f}%{sp}")
+        lines.append(f"<b>Growth A backtest</b> $500→${head['final']:,.0f} @50bp · maxDD {head['maxdd']*100:.0f}%{sp}")
     if url:
         lines += ["", f"📱 {url}"]
-    lines += ["", "<i>Apex uses up to ~3.25× effective leverage (can be liquidated on a large adverse gap); "
-              "spot 1× cannot. Hypothetical; not financial advice.</i>"]
+    lines += ["", "<i>Growth A uses up to ~5× effective leverage (can be liquidated on a large adverse gap); "
+              "deep drawdowns and losing years happen (2018/2022/2025 in backtest). Spot 1× cannot be "
+              "liquidated. Hypothetical; not financial advice.</i>"]
     return "\n".join(lines)
 
 
 def entry_msg(B, price):
     de = "🟢 LONG" if B["direction"] == "LONG" else "🔴 SHORT"
     liqs = f" · liquidation ${B['liquidation']:,.0f}" if B.get("liquidation") else ""
-    return (f"<b>⚡ BTC POWER — ENTER {de} (Apex)</b>\n"
+    return (f"<b>⚡ BTC POWER — ENTER {de} (Growth A)</b>\n"
             f"Price <b>${price:,.0f}</b> · {B['regime']} · engines {', '.join(B['engines']) or '—'}\n"
             f"Confidence {B['confidence']} · effective {B.get('exposure_mult', 0):.1f}× · margin {B['margin_pct']:.0f}%\n"
             f"🛑 <b>Cut-loss ${B['cutloss']:,.0f}</b> (−15%){liqs}\n"
@@ -135,9 +136,9 @@ def entry_msg(B, price):
 
 def exit_msg(s, price, reason):
     d = s["direction"]; pnl = (price / s["entry"] - 1) * (1 if d == "LONG" else -1) if s.get("entry") else 0
-    return (f"<b>⚡ BTC POWER — EXIT {d} (Apex)</b> {'🟢' if pnl >= 0 else '🔴'}\n"
+    return (f"<b>⚡ BTC POWER — EXIT {d} (Growth A)</b> {'🟢' if pnl >= 0 else '🔴'}\n"
             f"Out ${price:,.0f}" + (f" (in ${s['entry']:,.0f}) · <b>{pnl*100:+.1f}%</b>" if s.get('entry') else "")
-            + f"\nReason: {reason}. Now FLAT — wait for the next Apex signal.")
+            + f"\nReason: {reason}. Now FLAT — wait for the next Growth A signal.")
 
 
 def main():
@@ -149,7 +150,7 @@ def main():
 
     if "--selftest" in sys.argv:
         ok = tg_selfcheck()
-        tg(f"<b>⚡ BTC POWER — selftest</b>\nApex: {B['action']} · as of {d['as_of']}. If you see this, the live token works.")
+        tg(f"<b>⚡ BTC POWER — selftest</b>\nGrowth A: {B['action']} · as of {d['as_of']}. If you see this, the live token works.")
         print("[selftest] token ok:", ok); return
 
     if mode == "daily" or "--dry" in sys.argv:
@@ -158,7 +159,7 @@ def main():
             print(msg); return
         tg_selfcheck(); tg(msg); return
 
-    # ---- watch mode (tracks the Apex model) ----
+    # ---- watch mode (tracks the Growth A model) ----
     tg_selfcheck()
     s = load_state(); today = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d")
     price = live_price(d["price"]); cur = B["direction"]
@@ -168,10 +169,10 @@ def main():
         if hit:
             tg(exit_msg(s, s["cutloss"], "cut-loss hit"))
             s = {"direction": "FLAT", "entry": None, "cutloss": None, "last_report_date": s["last_report_date"]}
-    # 2) Apex signal change (entry / exit / flip)
+    # 2) Growth A signal change (entry / exit / flip)
     if cur != s["direction"]:
         if s["direction"] in ("LONG", "SHORT"):
-            tg(exit_msg(s, price, "Apex signal flipped to " + cur))
+            tg(exit_msg(s, price, "Growth A signal flipped to " + cur))
         if cur in ("LONG", "SHORT"):
             tg(entry_msg(B, price))
             s.update(direction=cur, entry=price, cutloss=B["cutloss"])
@@ -181,7 +182,7 @@ def main():
     if s.get("last_report_date") != today:
         tg(daily_report(d, url)); s["last_report_date"] = today
     json.dump(s, open(STATE, "w"), indent=2)
-    print("[watch] Apex:", cur, "| state:", s)
+    print("[watch] Growth A:", cur, "| state:", s)
 
 
 if __name__ == "__main__":

@@ -65,7 +65,7 @@ canvas{width:100%;height:300px;display:block;border-radius:10px;touch-action:non
 <div class="chip" id="chip"></div></header>
 
 <div class="pane on" id="p-signal">
-  <div class="card feat"><div class="h">⚡ Apex Model · trend-aligned · vol-targeted</div>
+  <div class="card feat"><div class="h">⚡ Growth A Model · 5× vol-targeted</div>
     <div class="big" id="b8_action"></div>
     <div class="row"><span class="k">Market type</span><span class="v" id="b8_regime"></span></div>
     <div class="row"><span class="k">Engines</span><span class="v" id="b8_eng"></span></div>
@@ -109,8 +109,8 @@ canvas{width:100%;height:300px;display:block;border-radius:10px;touch-action:non
 </div>
 
 <div class="pane" id="p-trades">
-  <div class="card"><div class="h">Apex — recent 20 positions (entry → exit)</div>
-    <div class="note" style="margin:0 0 8px">Each = a position Apex held until its direction changed. % = the live model's realized equity return (after slippage). The top row is the <b>current open position</b> — it shows the latest price and a running return, no exit yet.</div>
+  <div class="card"><div class="h">Growth A — recent 20 positions (entry → exit)</div>
+    <div class="note" style="margin:0 0 8px">Each = a position Growth A held until its direction changed. % = the live model's realized equity return (after slippage). The top row is the <b>current open position</b> — it shows the latest price and a running return, no exit yet.</div>
     <div id="tradelist"></div></div>
 </div>
 <div class="note" style="text-align:center;opacity:.55;margin-top:2px" id="footgen"></div>
@@ -151,8 +151,8 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkFresh
 window.addEventListener('focus',checkFresh);setInterval(checkFresh,1800000);
 // header chip = 8B direction
 const dirc=d=>d==='LONG'?'var(--grn)':(d==='SHORT'?'var(--red)':'var(--mut)');
-const B=D.model_apex||D.model_8b,C=D.live,F=D.forecast;
-const chip=$('chip');chip.textContent='Apex: '+B.action;chip.style.background=dirc(B.direction)+'22';chip.style.color=dirc(B.direction);
+const B=D.model_growth||D.model_apex||D.model_8b,C=D.live,F=D.forecast;
+const chip=$('chip');chip.textContent='Growth A: '+B.action;chip.style.background=dirc(B.direction)+'22';chip.style.color=dirc(B.direction);
 // 8B card
 $('b8_action').textContent=B.action;$('b8_action').style.color=dirc(B.direction);
 $('b8_regime').textContent=B.regime;$('b8_eng').textContent=(B.engines||[]).join(', ')||'—';
@@ -181,7 +181,7 @@ $('tradelist').innerHTML=D.recent_trades.map((t,k)=>{const c=t.direction==='LONG
  <div class="t2"><span>in $${f0(t.entry)} · out $${f0(t.exit)}</span><span>${t.reason} ›</span></div></div>`}).join('');
 // keep the open position's "now" price + running return fresh with the live price
 function updOpen(p){const t=D.recent_trades.find(x=>x.open);if(!t)return;const nb=$('open_now');if(nb)nb.textContent=f0(p);
- const rb=$('open_ret');if(!rb)return;const dir=t.direction==='LONG'?1:-1;const expm=(D.model_apex&&D.model_apex.exposure_mult)||1;
+ const rb=$('open_ret');if(!rb)return;const dir=t.direction==='LONG'?1:-1;const MM=D.model_growth||D.model_apex;const expm=(MM&&MM.exposure_mult)||1;
  const base=(t.apex_ret!=null?t.apex_ret:0),since=(p/D.price-1)*dir*expm,r=(1+base)*(1+since)-1;
  rb.textContent=(r*100).toFixed(1)+'%';rb.className=r>=0?'pos':'neg';}
 updOpen(D.price);
@@ -195,7 +195,7 @@ function openTrade(k){const t=D.recent_trades[k];const c=t.direction==='LONG'?'v
    ['Entry',`$${f0(t.entry)} · ${t.entry_dt}`],
    [t.open?'Now (last close)':'Exit',t.open?`$${f0(D.price)} · ${D.as_of}`:`$${f0(t.exit)} · ${t.exit_dt}`],
    ['Spot 1× move',`<span class="${r1>=0?'pos':'neg'}">${(r1*100).toFixed(1)}%</span>`],
-   [t.open?'Apex return (running)':'Apex return (realized)',`<span class="${ra>=0?'pos':'neg'}">${(ra*100).toFixed(1)}%</span>`],
+   [t.open?'Growth A return (running)':'Growth A return (realized)',`<span class="${ra>=0?'pos':'neg'}">${(ra*100).toFixed(1)}%</span>`],
    ['Status',t.reason]
  ].map(([a,b])=>`<div class="row"><span class="k">${a}</span><span class="v">${b}</span></div>`).join('');
  const ix=tradeIdx(t);$('tm_jump').onclick=()=>{closeModal();jumpToTrade(ix);};
@@ -206,7 +206,7 @@ $('tmodal').addEventListener('click',e=>{if(e.target.id==='tmodal')closeModal();
 function jumpToTrade(idx){if(idx==null)return;pinned=idx;const half=120,L=D.dates.length-1;
  view.a=Math.max(0,idx-half);view.b=Math.min(L,idx+half);switchTab('perf');}
 // ---- interactive chart ----
-const SC=Object.keys(D.scenarios);let scenario=SC.includes('Apex @50bp')?'Apex @50bp':SC[0];
+const SC=Object.keys(D.scenarios);let scenario=SC.includes('Growth A @50bp')?'Growth A @50bp':(SC.includes('Apex @50bp')?'Apex @50bp':SC[0]);
 let logScale=true,view={a:0,b:D.dates.length-1},hover=null,showMarks=true,pinned=null;
 $('scbtns').innerHTML=SC.map(s=>`<div class="scb${s===scenario?' on':''}" data-sc="${s}">${s}</div>`).join('');
 document.querySelectorAll('.scb').forEach(b=>b.onclick=()=>{scenario=b.dataset.sc;document.querySelectorAll('.scb').forEach(x=>x.classList.toggle('on',x.dataset.sc===scenario));updM();draw();});

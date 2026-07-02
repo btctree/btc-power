@@ -1,15 +1,17 @@
-> # 🟢 CURRENT LIVE PRODUCT — **Apex**
+> # 🟢 CURRENT LIVE PRODUCT — **Growth A** (final production model, chosen 2026-06-28)
 >
 > Dashboard: **https://btctree.github.io/btc-power/** · repo `btctree/btc-power` · auto-deploys on
 > push + hourly via `.github/workflows/daily.yml`.
 >
 > **Live pipeline (this is the product — edit carefully):**
-> `src/fetch_data.py` → `src/apex_engine.py` → `src/build_live_dashboard.py` →
+> `src/fetch_data.py` → `src/growth_engine.py` → `src/build_live_dashboard.py` →
 > `src/telegram_signal.py --mode watch`.
 >
-> **Apex** = conviction-filtered regime ensemble · short-selective · turnover-controlled · trend-aligned
-> cap 3.25×/3.0× · vol-targeted · VOL+FUND gates · dd-kill. **@50 bp: $500 → ~$1.2M, −54% DD,
-> 0 liquidations, 204 trades** (Calmar 1.59, Sharpe 1.29, win 40%).
+> **Growth A** = conviction-filtered regime ensemble · turnover-controlled (EMA-5 + 0.15 dead-band) ·
+> cap 5× vol-targeted (vt 1.5) · VOL+FUND gates · dd-kill 30%. **@50 bp: $500 → $3,536,933 (2014+),
+> −59% maxDD, 0 liquidations** (Calmar 1.75, Sharpe 1.35, win 38%). Honest caveats: losing years
+> happen (2018 −26%, 2022 −24%, 2025 −21% in backtest); @0 bp $361M is perfect-fill, not tradeable.
+> Previous live model (Apex, $1.2M @50 bp, −54% DD) retired to `src/apex_engine.py`.
 >
 > 📖 **All models + verified numbers + rejected ideas → [`MODELS_FINDINGS.md`](MODELS_FINDINGS.md).**
 > Excel reports moved to **`../excel_reports/`**.

@@ -31,7 +31,7 @@ jobs:
         working-directory: src
         run: |
           python fetch_data.py
-          python apex_engine.py
+          python growth_engine.py
           python build_live_dashboard.py
       - name: Telegram watch (entry / exit / stop / daily report)
         working-directory: src
