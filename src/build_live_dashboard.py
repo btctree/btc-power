@@ -106,7 +106,7 @@ canvas{width:100%;height:300px;display:block;border-radius:10px;touch-action:non
     <div class="scbtns" id="scbtns"></div>
     <canvas id="chart"></canvas>
     <div class="legend" style="margin-top:6px;flex-wrap:wrap"><span><b style="color:var(--grn)">▲</b> enter long</span><span><b style="color:var(--red)">▼</b> enter short</span><span><b style="color:var(--grn)">△</b><b style="color:var(--red)">▽</b> exit</span><span class="mut">tap a Trade to pin</span></div>
-    <div class="ctrls"><button onclick="setRange(365)">1Y</button><button onclick="setRange(1095)">3Y</button><button onclick="setRange(1825)">5Y</button><button onclick="setRange(0)">All</button></div>
+    <div class="ctrls"><button onclick="setRange(365)">1Y</button><button onclick="setRange(1095)">3Y</button><button onclick="setRange(1825)">5Y</button><button onclick="setRange(0)">All</button><button onclick="toggleUnit()" id="unitBtn">$</button></div>
     <div class="ctrls"><button onclick="zoomBtn(0.7)">＋</button><button onclick="zoomBtn(1.4)">－</button><button onclick="toggleScale()" id="scaleBtn">Log</button><button onclick="toggleMarks()" id="markBtn">Marks ●</button><button onclick="resetView()">Reset</button></div>
     <div class="row" style="margin-top:8px"><span class="k">Final $500→</span><span class="v" id="m_final"></span></div>
     <div class="row"><span class="k">CAGR / maxDD</span><span class="v" id="m_cd"></span></div>
@@ -164,7 +164,9 @@ $('b8_regime').textContent=B.regime;$('b8_eng').textContent=(B.engines||[]).join
 $('b8_conf').textContent=B.confidence+(B.conviction_ok?'':' (below 0.40 → flat)');
 $('b8_entry').textContent=B.entry_price?('$'+f0(B.entry_price)+' · '+(B.entry_date||'')):'—';
 $('b8_margin').textContent=B.margin_pct+'% of equity';$('b8_cut').textContent=B.cutloss?('$'+f0(B.cutloss)):'—';
-$('b8_liq').textContent=B.liquidation?('$'+f0(B.liquidation)):'—';$('b8_note').textContent='ℹ️ '+B.note;
+if(B.liquidation&&B.entry_price){const lp=Math.round(Math.abs(B.liquidation/B.entry_price-1)*100);$('b8_liq').textContent='$'+f0(B.liquidation)+' · −'+lp+'% (cross)';}
+else{$('b8_liq').textContent=B.liquidation?('$'+f0(B.liquidation)):'—';}
+$('b8_note').textContent='ℹ️ '+B.note;
 // core card
 $('c_action').textContent=C.action;$('c_action').style.color=dirc(C.direction);
 $('c_size').textContent=C.size_pct+'% of equity';$('c_margin').textContent=C.margin;$('c_cut').textContent=C.cutloss?('$'+f0(C.cutloss)):'—';
@@ -213,7 +215,7 @@ function jumpToTrade(idx){if(idx==null)return;pinned=idx;const half=120,L=D.date
  view.a=Math.max(0,idx-half);view.b=Math.min(L,idx+half);switchTab('perf');}
 // ---- interactive chart ----
 const SC=Object.keys(D.scenarios);let scenario=SC.includes('Max B @50bp')?'Max B @50bp':(SC.includes('Growth A @50bp')?'Growth A @50bp':SC[0]);
-let logScale=true,view={a:0,b:D.dates.length-1},hover=null,showMarks=true,pinned=null;
+let logScale=true,view={a:0,b:D.dates.length-1},hover=null,showMarks=true,pinned=null,unitX=false;
 $('scbtns').innerHTML=SC.map(s=>`<div class="scb${s===scenario?' on':''}" data-sc="${s}">${s}</div>`).join('');
 document.querySelectorAll('.scb').forEach(b=>b.onclick=()=>{scenario=b.dataset.sc;document.querySelectorAll('.scb').forEach(x=>x.classList.toggle('on',x.dataset.sc===scenario));updM();draw();});
 function updM(){const m=D.scenarios[scenario].metrics;$('m_final').textContent='$'+f0(m.final);$('m_cd').textContent=fp(m.cagr)+' / '+fp(m.maxdd);}
@@ -222,6 +224,7 @@ function toggleScale(){logScale=!logScale;$('scaleBtn').textContent=logScale?'Lo
 function toggleMarks(){showMarks=!showMarks;$('markBtn').textContent=showMarks?'Marks ●':'Marks ○';draw();}
 function resetView(){view={a:0,b:D.dates.length-1};hover=null;pinned=null;draw();}
 function setRange(d){const L=D.dates.length-1;view=d?{a:Math.max(0,L-d),b:L}:{a:0,b:L};hover=null;draw();}
+function toggleUnit(){unitX=!unitX;document.getElementById('unitBtn').textContent=unitX?'×':'$';draw();}
 function draw(){const cv=$('chart');if(!cv.clientWidth)return;const dpr=window.devicePixelRatio||1,W=cv.clientWidth,H=300;
  cv.width=W*dpr;cv.height=H*dpr;const x=cv.getContext('2d');x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,W,H);
  const eq=D.scenarios[scenario].eq,a=Math.max(0,Math.floor(view.a)),b=Math.min(eq.length-1,Math.ceil(view.b));
@@ -231,13 +234,15 @@ function draw(){const cv=$('chart');if(!cv.clientWidth)return;const dpr=window.d
  const py=v=>{const t=((logScale?Math.log10(Math.max(v,1e-6)):v)-ya)/Math.max(1e-9,yb-ya);return H-PB-(H-PT-PB)*t;};
  x.strokeStyle='#1c2433';x.fillStyle='#6b7787';x.font='9px sans-serif';
  const fk=v=>v>=1e9?'$'+(Math.round(v/1e8)/10)+'B':v>=1e6?'$'+(Math.round(v/1e5)/10)+'M':v>=1e3?'$'+(Math.round(v/100)/10)+'k':'$'+Math.round(v);
+ const fx=v=>v>=1e6?(Math.round(v/1e5)/10)+'M×':v>=1e3?(Math.round(v/100)/10)+'k×':(v>=10?Math.round(v):Math.round(v*10)/10)+'×';
+ const U=unitX?1/500:1, fl=unitX?fx:fk;              // × mode: value as multiple of the $500 start
  const span=yb-ya;
  if(logScale&&span>=1){
-  // adaptive 1-2-5 log ticks: fills the big visual gaps between powers of 10
-  const mults=span>=3?[1,5]:[1,2,5];
-  for(let p=Math.floor(ya)-1;p<=Math.ceil(yb);p++)for(const m of mults){const v=m*Math.pow(10,p);
-   if(v<lo*0.999||v>hi*1.001)continue;const y=py(v);x.beginPath();x.moveTo(PL,y);x.lineTo(W-PR,y);x.stroke();x.fillText(fk(v),3,y-2);}}
- else{for(let g=0;g<=4;g++){const v=lo+(hi-lo)*g/4,y=py(v);x.beginPath();x.moveTo(PL,y);x.lineTo(W-PR,y);x.stroke();x.fillText(fk(v),3,y-2);}}
+  // adaptive 1-2-5 log ticks IN DISPLAY UNITS ($ or ×): fills the gaps between powers of 10
+  const loU=lo*U,hiU=hi*U,mults=span>=3?[1,3]:[1,2,5];   // 1-3-10 ladder = visually even on log scale
+  for(let p=Math.floor(Math.log10(loU))-1;p<=Math.ceil(Math.log10(hiU));p++)for(const m of mults){const vU=m*Math.pow(10,p);
+   if(vU<loU*0.999||vU>hiU*1.001)continue;const y=py(vU/U);x.beginPath();x.moveTo(PL,y);x.lineTo(W-PR,y);x.stroke();x.fillText(fl(vU),3,y-2);}}
+ else{for(let g=0;g<=4;g++){const v=lo+(hi-lo)*g/4,y=py(v);x.beginPath();x.moveTo(PL,y);x.lineTo(W-PR,y);x.stroke();x.fillText(fl(v*U),3,y-2);}}
  x.fillStyle='#6b7787';[a,Math.floor((a+b)/2),b].forEach(i=>x.fillText((D.dates[i]||'').slice(0,7),Math.min(W-40,Math.max(PL,px(i)-16)),H-4));
  x.strokeStyle='#2bd576';x.lineWidth=1.8;x.beginPath();let st=false;for(let i=a;i<=b;i++){const v=eq[i];if(v<=0)continue;i&&st?x.lineTo(px(i),py(v)):x.moveTo(px(i),py(v));st=true;}x.stroke();
  // Apex markers — solid ▲/▼ = ENTER (green long / red short), hollow △/▽ = EXIT (paired); de-cluttered
@@ -251,7 +256,7 @@ function draw(){const cv=$('chart');if(!cv.clientWidth)return;const dpr=window.d
  // hover tooltip
  if(hover!=null&&hover>=a&&hover<=b){const X=px(hover),v=eq[hover];x.strokeStyle='#4da3ff';x.lineWidth=1;x.setLineDash([4,3]);x.beginPath();x.moveTo(X,PT);x.lineTo(X,H-PB);x.stroke();x.setLineDash([]);
   if(v>0){x.fillStyle='#4da3ff';x.beginPath();x.arc(X,py(v),3.5,0,7);x.fill();}
-  const lines=[(D.dates[hover]||'').slice(0,10),'Equity $'+f0(v),'BTC $'+f0(D.close[hover])];
+  const lines=[(D.dates[hover]||'').slice(0,10),'Equity $'+f0(v)+' ('+(Math.round(v/500*10)/10)+'×)','BTC $'+f0(D.close[hover])];
   x.font='11px sans-serif';const tw=Math.max(...lines.map(s=>x.measureText(s).width))+12;const tx=Math.min(W-tw-4,Math.max(4,X+8));
   x.fillStyle='#0e1622ee';x.strokeStyle='#2a3650';x.lineWidth=1;x.beginPath();x.rect(tx,PT+2,tw,46);x.fill();x.stroke();
   x.fillStyle='#cfe3ff';lines.forEach((s,k)=>x.fillText(s,tx+6,PT+16+k*14));}
