@@ -1,10 +1,12 @@
-"""GROWTH A live engine -> out/results_live.json (the chosen PRODUCTION model, replaces Apex).
-Growth A = conviction-filtered regime ensemble (|exp|>=0.4), EMA-5 smoothed + 0.15 deadband (turnover
-control), cap 5x, vol-target 1.5, VOL+FUND gates, dd-kill 30%. NO short-selectivity, NO trend-aligned
-cap (that's what distinguishes it from Apex). Verified @50bp: $500 -> $3,536,933 (2014+), maxDD -59%,
-Sharpe 1.35, Calmar 1.75, win 38%. Honest: losing years exist (2018/2022/2025). Scenarios for the
-Returns chart = the SAME Growth A logic at 1x / 0bp / 50bp / 100bp. Same JSON schema as the Apex build
-(model_growth; model_apex/model_8b kept as aliases so cached dashboards keep working during cutover).
+"""MAX B live engine -> out/results_live.json (the PRODUCTION model, chosen 2026-07-02; replaces the
+plain Growth A). Max B = Growth A base (conviction ensemble |exp|>=0.4, EMA-5 + 0.15 deadband, cap 5x,
+vol-target 1.5, VOL+FUND gates, dd-kill 30%) PLUS the protection stack:
+  - 200-WEEK-MA FLOOR: no shorts while price < 200WMA (BTC bottoms at the 200WMA every cycle)
+  - PI CYCLE de-risk: for 365 days after the 111DMA crosses above 2x350DMA (cycle-top alarm; fired
+    2017-12-17 and 2021-04-12, zero false positives), exposure x0.5.
+Verified @50bp: $500 -> $11,593,525 (2014+), maxDD -56%. @0bp $772M. Honest: 2024 ~0%, 2025 -38%
+losing years remain; Pi Cycle rests on 2 historical events (failure mode inert). Scenarios = the SAME
+Max B logic at 1x / 0bp / 50bp / 100bp. JSON keys unchanged (model_growth + apex/8b aliases).
 """
 import os, json, datetime as dt
 import numpy as np, pandas as pd
@@ -41,12 +43,28 @@ def main(save_as="results_live.json"):
         if fr[i] == fr[i]:
             if fr[i] > 0.90: gl[i] *= 0.5
             if fr[i] < 0.10: gs[i] *= 0.5
+    # --- Max B protection stack (BTC closes only; both arrays pre-shifted 1 day = no look-ahead) ---
+    c_ = pd.Series(close)
+    wma200 = c_.rolling(1400).mean()                               # 200-week MA
+    below_200w = (c_ < wma200).shift(1).fillna(False).to_numpy()   # floor: no shorts below it
+    m111 = c_.rolling(111).mean(); m350x2 = 2 * c_.rolling(350).mean()
+    above = (m111 > m350x2).to_numpy()
+    pi_alarm = np.zeros(n, bool); _lc = -10**9
+    for i in range(1, n):
+        if above[i] and not above[i - 1]: _lc = i
+        if i - _lc <= 365: pi_alarm[i] = True
+    pi_alarm = np.roll(pi_alarm, 1); pi_alarm[0] = False           # act next day
+    pi_crosses = [dates[i] for i in range(1, n) if above[i] and not above[i - 1]]
+    print("[maxb] Pi Cycle crosses:", pi_crosses, "| alarm active today:", bool(pi_alarm[n - 1]),
+          "| price vs 200WMA:", "BELOW" if below_200w[n - 1] else "above")
 
     def sim(cap, slip, vt=1.5, dd_kill=0.30, band=0.15, fee=0.0005, maint=0.01, quant=False):
         """quant=True -> real-world margin: exposure snapped to whole levels 0/1x/2x/3x/4x/5x."""
         eqv = peak = 500.0; held = 0.0; eq = np.full(n, 500.0); E = np.zeros(n); liq = 0
         for i in range(i0, n):
             sig = e_in[i - 1]; g = gl[i - 1] if sig > 0 else (gs[i - 1] if sig < 0 else 1.0)
+            if sig < 0 and below_200w[i]: g = 0.0                  # 200WMA floor: no shorts below
+            if pi_alarm[i]: g *= 0.5                               # Pi Cycle bear-window de-risk
             if not (rv[i - 1] == rv[i - 1] and rv[i - 1] > 0): eq[i] = eqv; E[i] = held; continue
             e = sig * g * min(cap, vt / rv[i - 1])
             if dd_kill > 0 and eqv < peak * (1 - dd_kill): e *= 0.5
@@ -70,14 +88,14 @@ def main(save_as="results_live.json"):
     # funds posted as margin). So the continuous-size model is tradeable as-is. The strict
     # integer-EXPOSURE variant (quant=True) was measured: $644k @50bp / -71% DD (vs $3.54M / -59%)
     # because whole-step re-leveling multiplies turnover cost — documented, not used.
-    specs = [("1x (spot, 50bp)", 1.0, 0.005, False, "Growth A signal at 1x — no leverage (spot fractions allowed)"),
-             ("Growth A @0bp", 5.0, 0.0, False, "Growth A perfect-fill (optimistic, untradeable)"),
-             ("Growth A @50bp", 5.0, 0.005, False, "Growth A realistic (50bp slippage) — the headline"),
-             ("Growth A @100bp", 5.0, 0.010, False, "Growth A stressed (100bp slippage)")]
+    specs = [("1x (spot, 50bp)", 1.0, 0.005, False, "Max B signal at 1x — no leverage (spot fractions allowed)"),
+             ("Max B @0bp", 5.0, 0.0, False, "Max B perfect-fill (optimistic, untradeable)"),
+             ("Max B @50bp", 5.0, 0.005, False, "Max B realistic (50bp slippage) — the headline"),
+             ("Max B @100bp", 5.0, 0.010, False, "Max B stressed (100bp slippage)")]
     scen = {}; E_main = None; eq_main = None
     for name, cap, slip, quant, desc in specs:
         eq, E, liq = sim(cap, slip, quant=quant)
-        if name == "Growth A @50bp": E_main = E; eq_main = eq
+        if name == "Max B @50bp": E_main = E; eq_main = eq
         eqs = eq[i0:]; m = metrics(eqs)
         scen[name] = dict(eq=[round(float(x), 2) for x in eqs],
                           metrics={k: (None if (isinstance(v, float) and v != v) else round(float(v), 4)) for k, v in m.items()},
@@ -108,7 +126,7 @@ def main(save_as="results_live.json"):
         i = j + 1
     recent = trades[-20:][::-1]
 
-    # today's Growth A signal = the position ACTUALLY HELD by the @50bp path (stable until exit/flip;
+    # today Max B signal = the position ACTUALLY HELD by the @50bp path (stable until exit/flip;
     # margin level is a whole 1-5x; cut-loss & liquidation anchored to the ENTRY price, not today's).
     i = n - 1; price = float(close[i]); rgi = reg[i]; engines = emap.get(rgi) or []
     held = float(E_main[i]); sg2 = 1 if held > 0 else (-1 if held < 0 else 0)
@@ -126,27 +144,26 @@ def main(save_as="results_live.json"):
                   confidence=round(abs(e_in[i]), 2), conviction_ok=bool(abs(e_in[i]) > 0),
                   margin_pct=round(expm / 5 * 100, 0), vol_scale=round(min(1.0, 1.5 / rv[i]), 2) if rv[i] > 0 else 1.0,
                   cutloss=cutl, liquidation=liqp,
-                  note=(f"Growth A holds this position since {entry_date or '—'} (entry ${entry_price:,.0f}, daily "
+                  note=(f"Max B holds this position since {entry_date or '—'} (entry ${entry_price:,.0f}, daily "
                         f"close); the action stays until the model exits/flips or re-sizes — a new day does NOT "
                         f"re-price it. Cut-loss & liquidation are fixed from the entry price. How to trade "
                         f"{expm:.1f}x: set margin 5x and open a position worth {expm:.1f}x your equity "
-                        f"(= {expm/5*100:.0f}% of funds posted as margin). Honest: maxDD -59%; losing years happen "
-                        f"(2018/2022/2025 in backtest)."
-                        if sg2 else "Growth A is FLAT — no position; waiting for the next daily-close signal. "
-                        "Honest: maxDD -59%; losing years happen (2018/2022/2025 in backtest)."))
+                        f"(= {expm/5*100:.0f}% of funds posted as margin). Protection stack: 200WMA floor + Pi Cycle de-risk. "
+                        f"Honest: maxDD -56%; losing years remain (2024/2025 in backtest)."
+                        if sg2 else "Max B is FLAT — no position; waiting for the next daily-close signal. "
+                        "Honest: maxDD -56%; losing years happen (2024/2025 in backtest)."))
     core = dict(direction=dirn, regime=rgi, engines=engines,
                 action=(f"{dirn} (spot 1x)" if sg2 else "FLAT — stand aside"),
                 size_pct=round(min(1.0, abs(e_in[i])) * 100, 0), margin="SPOT 1x — no leverage, cannot be liquidated",
-                cutloss=(round(price * (0.85 if sg2 > 0 else 1.15), 2) if sg2 else None),
+                cutloss=cutl,   # same entry-anchored cut-loss as Max B (stops fixed from entry)
                 confidence=round(abs(e_in[i]), 2), take_profit="ride the trend; exit when the ensemble flips / regime changes")
     natbias = REG_BIAS.get(rgi, "ASIDE"); posbias = "UP" if sg2 > 0 else ("DOWN" if sg2 < 0 else "ASIDE")
     conflict = bool(sg2) and natbias in ("UP", "DOWN") and natbias != posbias
-    clp = round(price * (0.85 if sg2 > 0 else 1.15), 2) if sg2 else None
     if not sg2:
         head = f"{rgi}: no qualifying setup — stand aside."
     elif conflict:
         head = (f"Holding {dirn} into a {rgi} market (trailing signal). Manage with the cut-loss "
-                f"${clp:,.0f}; Growth A exits when the ensemble flips.")
+                f"${cutl:,.0f} (fixed from entry); Max B exits when the ensemble flips.")
     else:
         head = f"{rgi}: ensemble leans {dirn} (engines {', '.join(engines) or '—'})."
     fc = dict(regime=rgi, engines=engines, direction=dirn,
@@ -155,7 +172,7 @@ def main(save_as="results_live.json"):
     s20 = float(df["SMA20"].iloc[i]); s50 = float(df["SMA50"].iloc[i]); s200 = float(sma200[i])
     bbu = float(df["BB_Upper"].iloc[i]); bbl = float(df["BB_Lower"].iloc[i])
     out = dict(as_of=dates[i], price=round(price, 2), rsi=round(float(df["RSI"].iloc[i]), 1),
-               in_position=(dirn != "FLAT"), model_name="Growth A",
+               in_position=(dirn != "FLAT"), model_name="Max B",
                live=core, model_growth=growth, model_apex=growth, model_8b=growth, forecast=fc, regime_bias=REG_BIAS,
                no_trade_status=dict(market=rgi, bias=fc["bias"], next_action=fc["headline"]),
                levels=dict(price=round(price, 2), sma20=round(s20, 2), sma50=round(s50, 2), sma200=round(s200, 2),
@@ -164,7 +181,7 @@ def main(save_as="results_live.json"):
                generated=dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC"))
     with open(os.path.join(OUT, save_as), "w") as f:
         json.dump(out, f)
-    print("saved", save_as, "|", out["as_of"], "$%.0f" % out["price"], "| Growth A:", growth["action"])
+    print("saved", save_as, "|", out["as_of"], "$%.0f" % out["price"], "| Max B:", growth["action"])
     for k, v in scen.items():
         print(f"  {k:16s} ${v['metrics']['final']:>15,.0f}  DD {v['metrics']['maxdd']*100:>4.0f}%  liq {v['liq']}")
     print(f"  recent trades: {len(recent)} | open trade flagged: {recent[0]['open'] if recent else None} | markers: {len(markers)}")

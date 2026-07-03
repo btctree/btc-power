@@ -1,17 +1,19 @@
-> # 🟢 CURRENT LIVE PRODUCT — **Growth A** (final production model, chosen 2026-06-28)
+> # 🟢 CURRENT LIVE PRODUCT — **Max B** (production model, chosen 2026-07-02)
 >
 > Dashboard: **https://btctree.github.io/btc-power/** · repo `btctree/btc-power` · auto-deploys on
 > push + hourly via `.github/workflows/daily.yml`.
 >
 > **Live pipeline (this is the product — edit carefully):**
-> `src/fetch_data.py` → `src/growth_engine.py` → `src/build_live_dashboard.py` →
+> `src/fetch_data.py` → `src/growth_engine.py` (now runs Max B) → `src/build_live_dashboard.py` →
 > `src/telegram_signal.py --mode watch`.
 >
-> **Growth A** = conviction-filtered regime ensemble · turnover-controlled (EMA-5 + 0.15 dead-band) ·
-> cap 5× vol-targeted (vt 1.5) · VOL+FUND gates · dd-kill 30%. **@50 bp: $500 → $3,536,933 (2014+),
-> −59% maxDD, 0 liquidations** (Calmar 1.75, Sharpe 1.35, win 38%). Honest caveats: losing years
-> happen (2018 −26%, 2022 −24%, 2025 −21% in backtest); @0 bp $361M is perfect-fill, not tradeable.
-> Previous live model (Apex, $1.2M @50 bp, −54% DD) retired to `src/apex_engine.py`.
+> **Max B** = Growth A base (conviction ensemble · EMA-5 + 0.15 dead-band · cap 5× vol-targeted ·
+> VOL+FUND gates · dd-kill 30%) **+ protection stack**: 200-WEEK-MA floor (no shorts below it — BTC
+> bottoms there every cycle) and Pi Cycle de-risk (×0.5 for 365d after the 111DMA crosses 2×350DMA;
+> fired 2017-12-17 & 2021-04-12, zero false positives). **@50 bp: $500 → $11,593,525 (2014+),
+> −56% maxDD, 0 liquidations.** Honest caveats: losing years remain (2024 ~0%, 2025 −38%); the Pi rule
+> rests on 2 historical events (failure mode inert); @0 bp $772M is perfect-fill, not tradeable.
+> Prior models kept for reference: Growth A ($3.5M, same engine minus stack), Apex (`src/apex_engine.py`).
 >
 > 📖 **All models + verified numbers + rejected ideas → [`MODELS_FINDINGS.md`](MODELS_FINDINGS.md).**
 > Excel reports moved to **`../excel_reports/`**.
