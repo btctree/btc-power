@@ -230,8 +230,14 @@ function draw(){const cv=$('chart');if(!cv.clientWidth)return;const dpr=window.d
  const ya=logScale?Math.log10(Math.max(lo,1e-6)):lo,yb=logScale?Math.log10(hi):hi;
  const py=v=>{const t=((logScale?Math.log10(Math.max(v,1e-6)):v)-ya)/Math.max(1e-9,yb-ya);return H-PB-(H-PT-PB)*t;};
  x.strokeStyle='#1c2433';x.fillStyle='#6b7787';x.font='9px sans-serif';
- if(logScale){for(let p=Math.ceil(ya);p<=Math.floor(yb);p++){const y=py(Math.pow(10,p));x.beginPath();x.moveTo(PL,y);x.lineTo(W-PR,y);x.stroke();x.fillText('$'+f0(Math.pow(10,p)),3,y-2);}}
- else{for(let g=0;g<=4;g++){const v=lo+(hi-lo)*g/4,y=py(v);x.beginPath();x.moveTo(PL,y);x.lineTo(W-PR,y);x.stroke();x.fillText('$'+f0(v),3,y-2);}}
+ const fk=v=>v>=1e9?'$'+(Math.round(v/1e8)/10)+'B':v>=1e6?'$'+(Math.round(v/1e5)/10)+'M':v>=1e3?'$'+(Math.round(v/100)/10)+'k':'$'+Math.round(v);
+ const span=yb-ya;
+ if(logScale&&span>=1){
+  // adaptive 1-2-5 log ticks: fills the big visual gaps between powers of 10
+  const mults=span>=3?[1,5]:[1,2,5];
+  for(let p=Math.floor(ya)-1;p<=Math.ceil(yb);p++)for(const m of mults){const v=m*Math.pow(10,p);
+   if(v<lo*0.999||v>hi*1.001)continue;const y=py(v);x.beginPath();x.moveTo(PL,y);x.lineTo(W-PR,y);x.stroke();x.fillText(fk(v),3,y-2);}}
+ else{for(let g=0;g<=4;g++){const v=lo+(hi-lo)*g/4,y=py(v);x.beginPath();x.moveTo(PL,y);x.lineTo(W-PR,y);x.stroke();x.fillText(fk(v),3,y-2);}}
  x.fillStyle='#6b7787';[a,Math.floor((a+b)/2),b].forEach(i=>x.fillText((D.dates[i]||'').slice(0,7),Math.min(W-40,Math.max(PL,px(i)-16)),H-4));
  x.strokeStyle='#2bd576';x.lineWidth=1.8;x.beginPath();let st=false;for(let i=a;i<=b;i++){const v=eq[i];if(v<=0)continue;i&&st?x.lineTo(px(i),py(v)):x.moveTo(px(i),py(v));st=true;}x.stroke();
  // Apex markers — solid ▲/▼ = ENTER (green long / red short), hollow △/▽ = EXIT (paired); de-cluttered
