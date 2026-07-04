@@ -172,7 +172,8 @@ const LA=B.latest_action||{};const ACOL={ADD:'var(--grn)',ENTER:'var(--grn)',RED
 $('b8_size').textContent=(B.entry_exposure!=null&&B.exposure_mult!=null)?(B.entry_exposure+'× → '+B.exposure_mult+'×'):'—';
 $('b8_do').textContent=B.instruction||'—';$('b8_do').style.color=ACOL[LA.type]||'var(--ink)';
 const PA=B.position_actions||[];
-$('b8_actions').innerHTML=PA.length?PA.map(a=>`<div class="row" style="padding:4px 0"><span class="k">${a.date} <b style="color:${ACOL[a.type]||'var(--ink)'}">${a.type}</b>${a.type!=='ENTER'?(' '+(a.delta_x>0?'+':'')+a.delta_x+'×'):''}</span><span class="v">${a.type==='ENTER'?(a.to_x+'×'):(a.from_x+'× → '+a.to_x+'×')} @ $${f0(a.price)} · ${a.margin_pct}%</span></div>`).join(''):'<div class="note" style="margin:0">no open position</div>';
+$('b8_actions').innerHTML=PA.length?PA.map(a=>{const dp=(a.delta_pct!=null)?((a.delta_pct>0?'+':'')+a.delta_pct+'%'):'';const dx=a.type!=='ENTER'?(' '+(a.delta_x>0?'+':'')+a.delta_x+'× ('+dp+')'):(' '+a.to_x+'× ('+dp+')');
+ return `<div style="padding:4px 0;border-bottom:1px solid var(--line)"><div class="row" style="padding:0;border:0"><span class="k">${a.date} <b style="color:${ACOL[a.type]||'var(--ink)'}">${a.type}</b>${dx}</span><span class="v">${a.type==='ENTER'?'':(a.from_x+'× → ')}${a.to_x}× @ $${f0(a.price)} · ${a.margin_pct}%</span></div>${a.reason?('<div class="note" style="margin:1px 0 0;font-size:10.5px">↳ '+a.reason+'</div>'):''}</div>`}).join(''):'<div class="note" style="margin:0">no open position</div>';
 $('b8_avg').textContent=B.avg_entry?('$'+f0(B.avg_entry)):'—';
 $('b8_margin').textContent=B.margin_pct+'% of equity';$('b8_cut').textContent=B.cutloss?('$'+f0(B.cutloss)):'—';
 if(B.liquidation&&B.entry_price){const lp=Math.round(Math.abs(B.liquidation/B.entry_price-1)*100);$('b8_liq').textContent='$'+f0(B.liquidation)+' · −'+lp+'% (cross)';}

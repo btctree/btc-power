@@ -117,10 +117,12 @@ def daily_report(d, url):
         if pa:
             lines.append("• Build-up (every action):")
             for a in pa[-8:]:
+                dp = a.get("delta_pct"); dps = (f"{'+' if dp>0 else ''}{dp:.0f}%" if dp is not None else "")
+                rs = f" — {a['reason']}" if a.get("reason") else ""
                 if a["type"] == "ENTER":
-                    lines.append(f"   – {a['date']} ENTER {a['to_x']}× @ ${a['price']:,.0f} (margin {a['margin_pct']:.0f}%)")
+                    lines.append(f"   – {a['date']} ENTER {a['to_x']}× ({dps}) @ ${a['price']:,.0f} · margin {a['margin_pct']:.0f}%{rs}")
                 else:
-                    lines.append(f"   – {a['date']} {a['type']} {'+' if a['delta_x']>0 else ''}{a['delta_x']}× → {a['to_x']}× @ ${a['price']:,.0f} (margin {a['margin_pct']:.0f}%)")
+                    lines.append(f"   – {a['date']} {a['type']} {'+' if a['delta_x']>0 else ''}{a['delta_x']}× ({dps}) → {a['to_x']}× @ ${a['price']:,.0f} · margin {a['margin_pct']:.0f}%{rs}")
             if len(pa) > 8: lines.append(f"   – … {len(pa)-8} earlier action(s)")
         if B.get("avg_entry"):
             lines.append(f"• Avg entry (weighted) ≈ ${B['avg_entry']:,.0f}")
@@ -171,7 +173,8 @@ def resize_msg(prev_x, B):
             f"ACTION: <b>{do}</b>\n"
             f"Position size {prev_x:.1f}× → <b>{cur:.1f}×</b> of equity · margin {prev_x/5*100:.0f}% → {B['margin_pct']:.0f}%\n"
             f"Position entry (unchanged): {B.get('entry_date', '—')} @ ${ep:,.0f} · 🛑 cut-loss ${B['cutloss']:,.0f}\n"
-            f"<i>Re-size = the model adjusting to volatility/conviction; entry & cut-loss stay fixed.</i>")
+            + (f"Reason: {(B.get('latest_action') or {}).get('reason')}\n" if (B.get('latest_action') or {}).get('reason') else "")
+            + f"<i>Re-size = the model adjusting to volatility/conviction; entry & cut-loss stay fixed.</i>")
 
 
 def main():

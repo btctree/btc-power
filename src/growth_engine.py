@@ -59,15 +59,21 @@ def main(save_as="results_live.json"):
           "| price vs 200WMA:", "BELOW" if below_200w[n - 1] else "above")
 
     def sim(cap, slip, vt=1.5, dd_kill=0.30, band=0.15, fee=0.0005, maint=0.01, quant=False):
-        """quant=True -> real-world margin: exposure snapped to whole levels 0/1x/2x/3x/4x/5x."""
+        """quant=True -> real-world margin: exposure snapped to whole levels 0/1x/2x/3x/4x/5x.
+        Also tracks decision components per day (conviction/gates/vol-mult/dd-brake) for reasons."""
         eqv = peak = 500.0; held = 0.0; eq = np.full(n, 500.0); E = np.zeros(n); liq = 0
+        SIG = np.zeros(n); GT = np.ones(n); VM = np.zeros(n); DDK = np.ones(n)
+        comps = dict(SIG=SIG, GT=GT, VM=VM, DDK=DDK)
         for i in range(i0, n):
             sig = e_in[i - 1]; g = gl[i - 1] if sig > 0 else (gs[i - 1] if sig < 0 else 1.0)
             if sig < 0 and below_200w[i]: g = 0.0                  # 200WMA floor: no shorts below
             if pi_alarm[i]: g *= 0.5                               # Pi Cycle bear-window de-risk
             if not (rv[i - 1] == rv[i - 1] and rv[i - 1] > 0): eq[i] = eqv; E[i] = held; continue
-            e = sig * g * min(cap, vt / rv[i - 1])
-            if dd_kill > 0 and eqv < peak * (1 - dd_kill): e *= 0.5
+            vm = min(cap, vt / rv[i - 1])
+            ddk = 0.5 if (dd_kill > 0 and eqv < peak * (1 - dd_kill)) else 1.0
+            SIG[i] = sig; GT[i] = g; VM[i] = vm; DDK[i] = ddk
+            e = sig * g * vm
+            if ddk < 1.0: e *= 0.5
             if quant:
                 # whole margin levels 0/1/2/3/4/5x with hysteresis: keep the HELD level until the
                 # continuous target drifts >=0.75 of a step (or direction flips) — real-world re-leveling
@@ -81,7 +87,7 @@ def main(save_as="results_live.json"):
                 eqv *= 0.01; liq += 1; held = 0.0; eq[i] = eqv; E[i] = 0.0; peak = max(peak, eqv); continue
             eqv *= (1 + e * (close[i] / close[i - 1] - 1)); eqv -= eqv * abs(e - held) * (fee + slip)
             held = e; eq[i] = max(eqv, 1e-9); E[i] = e; peak = max(peak, eqv)
-        return eq, E, liq
+        return eq, E, liq, comps
 
     # NOTE on real-world margin: exchanges quantize the LEVERAGE SETTING (1x..5x), not the position
     # size — with a 5x margin setting any notional up to 5x equity is achievable (e.g. 1.9x = 38% of
@@ -92,10 +98,10 @@ def main(save_as="results_live.json"):
              ("Max B @0bp", 5.0, 0.0, False, "Max B perfect-fill (optimistic, untradeable)"),
              ("Max B @50bp", 5.0, 0.005, False, "Max B realistic (50bp slippage) — the headline"),
              ("Max B @100bp", 5.0, 0.010, False, "Max B stressed (100bp slippage)")]
-    scen = {}; E_main = None; eq_main = None
+    scen = {}; E_main = None; eq_main = None; comps_main = None
     for name, cap, slip, quant, desc in specs:
-        eq, E, liq = sim(cap, slip, quant=quant)
-        if name == "Max B @50bp": E_main = E; eq_main = eq
+        eq, E, liq, comps = sim(cap, slip, quant=quant)
+        if name == "Max B @50bp": E_main = E; eq_main = eq; comps_main = comps
         eqs = eq[i0:]; m = metrics(eqs)
         scen[name] = dict(eq=[round(float(x), 2) for x in eqs],
                           metrics={k: (None if (isinstance(v, float) and v != v) else round(float(v), 4)) for k, v in m.items()},
@@ -156,31 +162,49 @@ def main(save_as="results_live.json"):
         act_type, instr = "REDUCE", f"REDUCE — close {pv-cv:.1f}x of notional ({pv:.1f}x -> {cv:.1f}x; margin {pv/5*100:.0f}% -> {cv/5*100:.0f}%)"
     latest_action = dict(type=act_type, date=dates[i], from_x=round(pv, 2), to_x=round(cv, 2), instruction=instr)
     # position build-up: EVERY action inside the current open spell (entry + each add/reduce),
-    # each with its own date, executed close price, and size change; plus approx weighted avg entry
+    # each with date, executed close price, size change (x AND % of equity margin), and the REASON
+    # (which model component moved: conviction / volatility / drawdown-brake / Pi alarm / floor).
+    def action_reason(jp, j, a_type):
+        S_, V_, D_ = comps_main["SIG"], comps_main["VM"], comps_main["DDK"]
+        parts = []
+        if a_type == "ENTER":
+            return f"ensemble flipped {dirn} (conviction {abs(S_[j]):.2f})"
+        c1, c2 = abs(S_[jp]), abs(S_[j])
+        if abs(c2 - c1) >= 0.05:
+            parts.append(f"conviction {'rose' if c2 > c1 else 'fell'} {c1:.2f}→{c2:.2f}")
+        v1, v2 = V_[jp], V_[j]
+        if v1 > 0 and abs(v2 - v1) / v1 >= 0.05:
+            parts.append(f"volatility {'calmer' if v2 > v1 else 'higher'} (size mult {v1:.1f}→{v2:.1f})")
+        if D_[j] != D_[jp]:
+            parts.append("drawdown-brake " + ("ON (halves size)" if D_[j] < 1 else "released"))
+        if bool(pi_alarm[j]) != bool(pi_alarm[jp]):
+            parts.append("Pi Cycle alarm " + ("ON (halves size)" if pi_alarm[j] else "off"))
+        return " · ".join(parts) if parts else "target drifted ≥0.15× (dead-band)"
     position_actions = []; units = 0.0; cost = 0.0; avg_entry = None
     if sg2:
         prev_e = abs(float(E_main[k - 1])) if k > 0 and np.sign(E_main[k - 1]) == sg2 else 0.0
+        jp = k
         for j in range(k, i + 1):
             cur_e = abs(float(E_main[j]))
             ref = prev_e if j > k else 0.0
             if j == k or abs(cur_e - ref) > 1e-9:
                 d_ = cur_e - ref; pj = float(close[j])
-                if j == k:
-                    a_ = "ENTER"
-                elif d_ > 0:
-                    a_ = "ADD"
-                else:
-                    a_ = "REDUCE"
+                a_ = "ENTER" if j == k else ("ADD" if d_ > 0 else "REDUCE")
                 position_actions.append(dict(date=dates[j], type=a_, price=round(pj, 2),
                                              from_x=round(ref, 2), to_x=round(cur_e, 2),
-                                             delta_x=round(d_, 2), margin_pct=round(cur_e / 5 * 100, 0)))
+                                             delta_x=round(d_, 2), delta_pct=round(d_ / 5 * 100, 1),
+                                             margin_pct=round(cur_e / 5 * 100, 0),
+                                             reason=action_reason(jp, j, a_)))
                 if d_ > 0:
                     cost += d_ * pj; units += d_
                 elif units > 0:
                     ratio = cur_e / ref if ref > 0 else 0.0
                     cost *= ratio; units = cur_e
+                jp = j
             prev_e = cur_e
         if units > 0: avg_entry = round(cost / units, 2)
+        if position_actions and position_actions[-1]["date"] == dates[i]:
+            latest_action["reason"] = position_actions[-1]["reason"]
     growth = dict(direction=dirn, regime=rgi, engines=engines, exposure_mult=round(expm, 2),
                   action=(f"{dirn} {expm:.1f}x equity" if sg2 else "FLAT — stand aside"),
                   entry_price=(round(entry_price, 2) if entry_price else None), entry_date=entry_date,
