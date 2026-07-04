@@ -101,7 +101,16 @@ def daily_report(d, url):
     head = d["scenarios"].get("Max B @50bp", d["scenarios"].get("Growth A @50bp", {})).get("metrics", {})
     spot = d["scenarios"].get("1x (spot, 50bp)", {}).get("metrics", {})
     de = {"LONG": "🟢", "SHORT": "🔴", "FLAT": "⚪"}.get(B["direction"], "⚪")
-    lines = [f"<b>⚡ BTC POWER SIGNAL — {d['as_of']}</b>",
+    # today's required action highlighted at the very top (separate block); nothing when HOLD/FLAT
+    la = B.get("latest_action") or {}
+    lines = []
+    if la.get("type") and la["type"] not in ("HOLD",):
+        lines += [f"🚨 <b>ACTION REQUIRED — {la.get('date', d['as_of'])}</b>",
+                  f"👉 <b>{B.get('instruction', '')}</b>"]
+        if la.get("reason"):
+            lines.append(f"Reason: {la['reason']}")
+        lines.append("")
+    lines += [f"<b>⚡ BTC POWER SIGNAL — {d['as_of']}</b>",
              f"Price <b>${d['price']:,.0f}</b> · RSI {d['rsi']}",
              f"{de} <b>Max B: {B['action']}</b>", "",
              "<b>Max B model · 5× vol-targeted + cycle shields</b>",
@@ -115,8 +124,8 @@ def daily_report(d, url):
         lines.append(f"• Position: entered {B.get('entry_date','—')} @ ${B['entry_price']:,.0f} at {B.get('entry_exposure','?')}× · now {B.get('exposure_mult','?')}×")
         pa = B.get("position_actions") or []
         if pa:
-            lines.append("• Build-up (every action):")
-            for a in pa[-8:]:
+            lines.append("• Build-up (newest first):")
+            for a in reversed(pa[-8:]):
                 dp = a.get("delta_pct"); dps = (f"{'+' if dp>0 else ''}{dp:.0f}%" if dp is not None else "")
                 rs = f" — {a['reason']}" if a.get("reason") else ""
                 if a["type"] == "ENTER":
