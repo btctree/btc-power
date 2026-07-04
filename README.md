@@ -167,3 +167,5 @@ shown is what to hold into the next session.
   1000× price range (a $10 move at $135 ≈ a $10 move at $100k). We report %-compounded equity.
 - **Not financial advice.** Hypothetical backtest; funding & real fills not modeled; long-only.
   Validate out-of-sample before risking capital.
+
+<!-- deploy retrigger 2026-07-04 -->
