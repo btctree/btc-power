@@ -155,10 +155,37 @@ def main(save_as="results_live.json"):
     else:
         act_type, instr = "REDUCE", f"REDUCE — close {pv-cv:.1f}x of notional ({pv:.1f}x -> {cv:.1f}x; margin {pv/5*100:.0f}% -> {cv/5*100:.0f}%)"
     latest_action = dict(type=act_type, date=dates[i], from_x=round(pv, 2), to_x=round(cv, 2), instruction=instr)
+    # position build-up: EVERY action inside the current open spell (entry + each add/reduce),
+    # each with its own date, executed close price, and size change; plus approx weighted avg entry
+    position_actions = []; units = 0.0; cost = 0.0; avg_entry = None
+    if sg2:
+        prev_e = abs(float(E_main[k - 1])) if k > 0 and np.sign(E_main[k - 1]) == sg2 else 0.0
+        for j in range(k, i + 1):
+            cur_e = abs(float(E_main[j]))
+            ref = prev_e if j > k else 0.0
+            if j == k or abs(cur_e - ref) > 1e-9:
+                d_ = cur_e - ref; pj = float(close[j])
+                if j == k:
+                    a_ = "ENTER"
+                elif d_ > 0:
+                    a_ = "ADD"
+                else:
+                    a_ = "REDUCE"
+                position_actions.append(dict(date=dates[j], type=a_, price=round(pj, 2),
+                                             from_x=round(ref, 2), to_x=round(cur_e, 2),
+                                             delta_x=round(d_, 2), margin_pct=round(cur_e / 5 * 100, 0)))
+                if d_ > 0:
+                    cost += d_ * pj; units += d_
+                elif units > 0:
+                    ratio = cur_e / ref if ref > 0 else 0.0
+                    cost *= ratio; units = cur_e
+            prev_e = cur_e
+        if units > 0: avg_entry = round(cost / units, 2)
     growth = dict(direction=dirn, regime=rgi, engines=engines, exposure_mult=round(expm, 2),
                   action=(f"{dirn} {expm:.1f}x equity" if sg2 else "FLAT — stand aside"),
                   entry_price=(round(entry_price, 2) if entry_price else None), entry_date=entry_date,
                   entry_exposure=entry_x, prev_exposure=round(pv, 2), latest_action=latest_action,
+                  position_actions=position_actions, avg_entry=avg_entry,
                   instruction=instr,
                   signal_basis="daily close (UTC)", margin_setting="5x",
                   confidence=round(abs(e_in[i]), 2), conviction_ok=bool(abs(e_in[i]) > 0),

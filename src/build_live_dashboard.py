@@ -76,6 +76,9 @@ canvas{width:100%;height:300px;display:block;border-radius:10px;touch-action:non
     <div class="row"><span class="k">Margin used (setting 5×)</span><span class="v" id="b8_margin"></span></div>
     <div class="row"><span class="k">Cut-loss (entry −15%)</span><span class="v amb" id="b8_cut"></span></div>
     <div class="row"><span class="k">Liquidation (from entry)</span><span class="v" id="b8_liq"></span></div>
+    <div class="h" style="margin-top:10px">Position build-up — every action</div>
+    <div id="b8_actions" style="font-size:12px"></div>
+    <div class="row" style="margin-top:2px"><span class="k">Avg entry (weighted)</span><span class="v" id="b8_avg"></span></div>
     <div class="risknote" id="b8_note"></div>
   </div>
   <div class="card"><div class="h">Core · spot 1× (safer, same direction)</div>
@@ -168,6 +171,9 @@ $('b8_entry').textContent=B.entry_price?('$'+f0(B.entry_price)+' · '+(B.entry_d
 const LA=B.latest_action||{};const ACOL={ADD:'var(--grn)',ENTER:'var(--grn)',REDUCE:'var(--amb)',EXIT:'var(--red)',FLIP:'var(--red)',HOLD:'var(--mut)'};
 $('b8_size').textContent=(B.entry_exposure!=null&&B.exposure_mult!=null)?(B.entry_exposure+'× → '+B.exposure_mult+'×'):'—';
 $('b8_do').textContent=B.instruction||'—';$('b8_do').style.color=ACOL[LA.type]||'var(--ink)';
+const PA=B.position_actions||[];
+$('b8_actions').innerHTML=PA.length?PA.map(a=>`<div class="row" style="padding:4px 0"><span class="k">${a.date} <b style="color:${ACOL[a.type]||'var(--ink)'}">${a.type}</b>${a.type!=='ENTER'?(' '+(a.delta_x>0?'+':'')+a.delta_x+'×'):''}</span><span class="v">${a.type==='ENTER'?(a.to_x+'×'):(a.from_x+'× → '+a.to_x+'×')} @ $${f0(a.price)} · ${a.margin_pct}%</span></div>`).join(''):'<div class="note" style="margin:0">no open position</div>';
+$('b8_avg').textContent=B.avg_entry?('$'+f0(B.avg_entry)):'—';
 $('b8_margin').textContent=B.margin_pct+'% of equity';$('b8_cut').textContent=B.cutloss?('$'+f0(B.cutloss)):'—';
 if(B.liquidation&&B.entry_price){const lp=Math.round(Math.abs(B.liquidation/B.entry_price-1)*100);$('b8_liq').textContent='$'+f0(B.liquidation)+' · −'+lp+'% (cross)';}
 else{$('b8_liq').textContent=B.liquidation?('$'+f0(B.liquidation)):'—';}

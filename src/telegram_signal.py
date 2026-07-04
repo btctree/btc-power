@@ -113,6 +113,17 @@ def daily_report(d, url):
         lines.append(f"📌 <b>What to do:</b> {B['instruction']}")
     if B.get("entry_price"):
         lines.append(f"• Position: entered {B.get('entry_date','—')} @ ${B['entry_price']:,.0f} at {B.get('entry_exposure','?')}× · now {B.get('exposure_mult','?')}×")
+        pa = B.get("position_actions") or []
+        if pa:
+            lines.append("• Build-up (every action):")
+            for a in pa[-8:]:
+                if a["type"] == "ENTER":
+                    lines.append(f"   – {a['date']} ENTER {a['to_x']}× @ ${a['price']:,.0f} (margin {a['margin_pct']:.0f}%)")
+                else:
+                    lines.append(f"   – {a['date']} {a['type']} {'+' if a['delta_x']>0 else ''}{a['delta_x']}× → {a['to_x']}× @ ${a['price']:,.0f} (margin {a['margin_pct']:.0f}%)")
+            if len(pa) > 8: lines.append(f"   – … {len(pa)-8} earlier action(s)")
+        if B.get("avg_entry"):
+            lines.append(f"• Avg entry (weighted) ≈ ${B['avg_entry']:,.0f}")
     lines += ["", (f"<b>Core (spot 1×, same way)</b>: {C['action']} · {C['size_pct']:.0f}%"
                    + (f" · cut ${C['cutloss']:,.0f}" if C.get("cutloss") else "")),
               "", f"<b>Forecast</b> {F['bias']} — {F['headline']}",
