@@ -119,6 +119,7 @@ def main(save_as="results_live.json"):
         trades.append(dict(entry_dt=dates[i], exit_dt=dates[j], market=reg[i],
                            strategy=", ".join(emap.get(reg[i]) or []) or "—",
                            direction="LONG" if s > 0 else "SHORT", entry=round(entry, 2),
+                           entry_x=round(float(abs(E_main[i])), 2), max_x=round(float(np.max(np.abs(E_main[i:j + 1]))), 2),
                            exit=round(exit_, 2), ret=round(ret, 4), apex_ret=round(float(model_ret), 4),
                            reason=reason, idx=i - i0, exit_idx=j - i0, open=is_open, exit_date=dates[j]))
         markers.append({"i": i - i0, "d": s, "t": "in"})
@@ -126,20 +127,39 @@ def main(save_as="results_live.json"):
         i = j + 1
     recent = trades[-20:][::-1]
 
-    # today Max B signal = the position ACTUALLY HELD by the @50bp path (stable until exit/flip;
-    # margin level is a whole 1-5x; cut-loss & liquidation anchored to the ENTRY price, not today's).
+    # today Max B signal = the position ACTUALLY HELD by the @50bp path (stable until exit/flip/resize;
+    # cut-loss & liquidation anchored to the ENTRY price, not today's).
     i = n - 1; price = float(close[i]); rgi = reg[i]; engines = emap.get(rgi) or []
     held = float(E_main[i]); sg2 = 1 if held > 0 else (-1 if held < 0 else 0)
     dirn = "LONG" if sg2 > 0 else ("SHORT" if sg2 < 0 else "FLAT"); expm = abs(held)
     k = i
     while k > 0 and np.sign(E_main[k - 1]) == sg2 and sg2 != 0: k -= 1
     entry_price = float(close[k]) if sg2 else None; entry_date = dates[k] if sg2 else None
+    entry_x = round(float(abs(E_main[k])), 2) if sg2 else None      # size at ENTRY (equity multiple)
     liqm = (1.0 / expm) if expm > 1 else None                      # <=1x notional cannot be liquidated
     cutl = (round(entry_price * (0.85 if sg2 > 0 else 1.15), 2) if sg2 else None)
     liqp = (round(entry_price * (1 - liqm) if sg2 > 0 else entry_price * (1 + liqm), 2) if (sg2 and liqm) else None)
+    # latest action = what changed on the most recent close (ENTER / ADD / REDUCE / EXIT / FLIP / HOLD)
+    prev = float(E_main[i - 1]) if i > 0 else 0.0
+    pv, cv = abs(prev), expm
+    if np.sign(prev) == sg2 and abs(held - prev) < 1e-9:
+        act_type, instr = "HOLD", (f"HOLD — keep {dirn} {cv:.1f}x (margin {cv/5*100:.0f}%); no action needed" if sg2 else "FLAT — no position, no action")
+    elif prev == 0 and sg2 != 0:
+        act_type, instr = "ENTER", f"ENTER — BUY BTC worth {cv:.1f}x your equity (margin {cv/5*100:.0f}% at 5x setting)" if sg2 > 0 else f"ENTER — SHORT BTC worth {cv:.1f}x your equity (margin {cv/5*100:.0f}%)"
+    elif sg2 == 0 and prev != 0:
+        act_type, instr = "EXIT", "EXIT — CLOSE the entire position; hold cash"
+    elif np.sign(prev) != sg2:
+        act_type, instr = "FLIP", f"FLIP — CLOSE the old position and open {dirn} {cv:.1f}x your equity (margin {cv/5*100:.0f}%)"
+    elif cv > pv:
+        act_type, instr = "ADD", f"ADD — {'BUY' if sg2 > 0 else 'SHORT'} +{cv-pv:.1f}x more notional ({pv:.1f}x -> {cv:.1f}x; margin {pv/5*100:.0f}% -> {cv/5*100:.0f}%)"
+    else:
+        act_type, instr = "REDUCE", f"REDUCE — close {pv-cv:.1f}x of notional ({pv:.1f}x -> {cv:.1f}x; margin {pv/5*100:.0f}% -> {cv/5*100:.0f}%)"
+    latest_action = dict(type=act_type, date=dates[i], from_x=round(pv, 2), to_x=round(cv, 2), instruction=instr)
     growth = dict(direction=dirn, regime=rgi, engines=engines, exposure_mult=round(expm, 2),
                   action=(f"{dirn} {expm:.1f}x equity" if sg2 else "FLAT — stand aside"),
                   entry_price=(round(entry_price, 2) if entry_price else None), entry_date=entry_date,
+                  entry_exposure=entry_x, prev_exposure=round(pv, 2), latest_action=latest_action,
+                  instruction=instr,
                   signal_basis="daily close (UTC)", margin_setting="5x",
                   confidence=round(abs(e_in[i]), 2), conviction_ok=bool(abs(e_in[i]) > 0),
                   margin_pct=round(expm / 5 * 100, 0), vol_scale=round(min(1.0, 1.5 / rv[i]), 2) if rv[i] > 0 else 1.0,

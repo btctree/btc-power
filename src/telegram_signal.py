@@ -109,6 +109,10 @@ def daily_report(d, url):
     if B.get("cutloss"):
         liqs = f" · liquidation ${B['liquidation']:,.0f}" if B.get("liquidation") else ""
         lines.append(f"• Effective {B.get('exposure_mult', 0):.1f}× · margin {B['margin_pct']:.0f}% · 🛑 cut-loss ${B['cutloss']:,.0f}{liqs}")
+    if B.get("instruction"):
+        lines.append(f"📌 <b>What to do:</b> {B['instruction']}")
+    if B.get("entry_price"):
+        lines.append(f"• Position: entered {B.get('entry_date','—')} @ ${B['entry_price']:,.0f} at {B.get('entry_exposure','?')}× · now {B.get('exposure_mult','?')}×")
     lines += ["", (f"<b>Core (spot 1×, same way)</b>: {C['action']} · {C['size_pct']:.0f}%"
                    + (f" · cut ${C['cutloss']:,.0f}" if C.get("cutloss") else "")),
               "", f"<b>Forecast</b> {F['bias']} — {F['headline']}",
@@ -129,18 +133,34 @@ def daily_report(d, url):
 def entry_msg(B, price):
     de = "🟢 LONG" if B["direction"] == "LONG" else "🔴 SHORT"
     liqs = f" · liquidation ${B['liquidation']:,.0f}" if B.get("liquidation") else ""
+    verb = "BUY" if B["direction"] == "LONG" else "SHORT"
     return (f"<b>⚡ BTC POWER — ENTER {de} (Max B)</b>\n"
-            f"Price <b>${price:,.0f}</b> (daily close = signal price) · {B['regime']} · engines {', '.join(B['engines']) or '—'}\n"
-            f"Confidence {B['confidence']} · effective {B.get('exposure_mult', 0):.1f}× · margin {B['margin_pct']:.0f}%\n"
-            f"🛑 <b>Cut-loss ${B['cutloss']:,.0f}</b> (−15%){liqs}\n"
+            f"ACTION: <b>{verb} BTC worth {B.get('exposure_mult', 0):.1f}× your equity</b> (margin {B['margin_pct']:.0f}% at 5× setting)\n"
+            f"Entry price <b>${price:,.0f}</b> (daily close = signal price) · {B['regime']} · engines {', '.join(B['engines']) or '—'}\n"
+            f"Confidence {B['confidence']}\n"
+            f"🛑 <b>Cut-loss ${B['cutloss']:,.0f}</b> (−15% from entry, fixed){liqs}\n"
             f"<i>Place a resting stop at the cut-loss to cap the downside.</i>")
 
 
 def exit_msg(s, price, reason):
     d = s["direction"]; pnl = (price / s["entry"] - 1) * (1 if d == "LONG" else -1) if s.get("entry") else 0
     return (f"<b>⚡ BTC POWER — EXIT {d} (Max B)</b> {'🟢' if pnl >= 0 else '🔴'}\n"
+            f"ACTION: <b>CLOSE the entire position</b>\n"
             f"Out ${price:,.0f}" + (f" (in ${s['entry']:,.0f}) · <b>{pnl*100:+.1f}%</b>" if s.get('entry') else "")
             + f"\nReason: {reason}. Now FLAT — wait for the next Max B signal.")
+
+
+def resize_msg(prev_x, B):
+    cur = B.get("exposure_mult", 0); d = B["direction"]; delta = cur - prev_x
+    head = "📈 ADD to" if delta > 0 else "📉 REDUCE"
+    do = (f"{'BUY' if d == 'LONG' else 'SHORT'} ≈{abs(delta):.1f}× more notional" if delta > 0
+          else f"CLOSE ≈{abs(delta):.1f}× of the position")
+    ep = B.get("entry_price") or 0
+    return (f"<b>⚡ BTC POWER — {head} {d} (Max B)</b>\n"
+            f"ACTION: <b>{do}</b>\n"
+            f"Position size {prev_x:.1f}× → <b>{cur:.1f}×</b> of equity · margin {prev_x/5*100:.0f}% → {B['margin_pct']:.0f}%\n"
+            f"Position entry (unchanged): {B.get('entry_date', '—')} @ ${ep:,.0f} · 🛑 cut-loss ${B['cutloss']:,.0f}\n"
+            f"<i>Re-size = the model adjusting to volatility/conviction; entry & cut-loss stay fixed.</i>")
 
 
 def main():
@@ -178,9 +198,14 @@ def main():
             tg(exit_msg(s, d["price"], "Max B signal flipped to " + cur))
         if cur in ("LONG", "SHORT"):
             tg(entry_msg(B, d["price"]))
-            s.update(direction=cur, entry=d["price"], cutloss=B["cutloss"])
+            s.update(direction=cur, entry=d["price"], cutloss=B["cutloss"], exposure=B.get("exposure_mult"))
         else:
-            s.update(direction="FLAT", entry=None, cutloss=None)
+            s.update(direction="FLAT", entry=None, cutloss=None, exposure=None)
+    elif cur in ("LONG", "SHORT") and B.get("exposure_mult") is not None:
+        # 3) RE-SIZE alert: same direction, size changed since the last stored state
+        if s.get("exposure") is not None and abs(B["exposure_mult"] - s["exposure"]) >= 0.1:
+            tg(resize_msg(s["exposure"], B))
+        s["exposure"] = B.get("exposure_mult")
     # 3) once-a-day full report
     if s.get("last_report_date") != today:
         tg(daily_report(d, url)); s["last_report_date"] = today

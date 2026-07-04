@@ -71,6 +71,8 @@ canvas{width:100%;height:300px;display:block;border-radius:10px;touch-action:non
     <div class="row"><span class="k">Engines</span><span class="v" id="b8_eng"></span></div>
     <div class="row"><span class="k">Confidence</span><span class="v" id="b8_conf"></span></div>
     <div class="row"><span class="k">Position entry</span><span class="v" id="b8_entry"></span></div>
+    <div class="row"><span class="k">Size: entry → now</span><span class="v" id="b8_size"></span></div>
+    <div class="row"><span class="k">📌 What to do</span><span class="v" id="b8_do" style="font-size:12px;max-width:60%"></span></div>
     <div class="row"><span class="k">Margin used (setting 5×)</span><span class="v" id="b8_margin"></span></div>
     <div class="row"><span class="k">Cut-loss (entry −15%)</span><span class="v amb" id="b8_cut"></span></div>
     <div class="row"><span class="k">Liquidation (from entry)</span><span class="v" id="b8_liq"></span></div>
@@ -163,6 +165,9 @@ $('b8_action').textContent=B.action;$('b8_action').style.color=dirc(B.direction)
 $('b8_regime').textContent=B.regime;$('b8_eng').textContent=(B.engines||[]).join(', ')||'—';
 $('b8_conf').textContent=B.confidence+(B.conviction_ok?'':' (below 0.40 → flat)');
 $('b8_entry').textContent=B.entry_price?('$'+f0(B.entry_price)+' · '+(B.entry_date||'')):'—';
+const LA=B.latest_action||{};const ACOL={ADD:'var(--grn)',ENTER:'var(--grn)',REDUCE:'var(--amb)',EXIT:'var(--red)',FLIP:'var(--red)',HOLD:'var(--mut)'};
+$('b8_size').textContent=(B.entry_exposure!=null&&B.exposure_mult!=null)?(B.entry_exposure+'× → '+B.exposure_mult+'×'):'—';
+$('b8_do').textContent=B.instruction||'—';$('b8_do').style.color=ACOL[LA.type]||'var(--ink)';
 $('b8_margin').textContent=B.margin_pct+'% of equity';$('b8_cut').textContent=B.cutloss?('$'+f0(B.cutloss)):'—';
 if(B.liquidation&&B.entry_price){const lp=Math.round(Math.abs(B.liquidation/B.entry_price-1)*100);$('b8_liq').textContent='$'+f0(B.liquidation)+' · −'+lp+'% (cross)';}
 else{$('b8_liq').textContent=B.liquidation?('$'+f0(B.liquidation)):'—';}
@@ -183,10 +188,10 @@ const tret=t=>(t.apex_ret!=null?t.apex_ret:t.ret);
 $('tradelist').innerHTML=D.recent_trades.map((t,k)=>{const c=t.direction==='LONG'?'var(--grn)':'var(--red)';const r=tret(t);const rc=r>=0?'pos':'neg';
  if(t.open) return `<div class="trade" onclick="openTrade(${k})" style="border-color:var(--blu)"><div class="t1"><span style="color:${c}">● CURRENT · ${t.direction} · ${t.strategy}</span><span class="${rc}" id="open_ret">${(r*100).toFixed(1)}%</span></div>
  <div class="t2"><span>open since ${t.entry_dt}</span><span>${t.market}</span></div>
- <div class="t2"><span>in $${f0(t.entry)} · now $<span id="open_now">${f0(D.price)}</span></span><span>running · open ›</span></div></div>`;
+ <div class="t2"><span>in $${f0(t.entry)}${t.entry_x?(' @'+t.entry_x+'×'):''} · now $<span id="open_now">${f0(D.price)}</span></span><span>running · open ›</span></div></div>`;
  return `<div class="trade" onclick="openTrade(${k})"><div class="t1"><span style="color:${c}">${t.direction} · ${t.strategy}</span><span class="${rc}">${(r*100).toFixed(1)}%</span></div>
  <div class="t2"><span>${t.entry_dt} → ${t.exit_dt}</span><span>${t.market}</span></div>
- <div class="t2"><span>in $${f0(t.entry)} · out $${f0(t.exit)}</span><span>${t.reason} ›</span></div></div>`}).join('');
+ <div class="t2"><span>in $${f0(t.entry)}${t.entry_x?(' @'+t.entry_x+'×'):''} · out $${f0(t.exit)}</span><span>${t.reason} ›</span></div></div>`}).join('');
 // keep the open position's "now" price + running return fresh with the live price
 function updOpen(p){const t=D.recent_trades.find(x=>x.open);if(!t)return;const nb=$('open_now');if(nb)nb.textContent=f0(p);
  const rb=$('open_ret');if(!rb)return;const dir=t.direction==='LONG'?1:-1;const MM=D.model_growth||D.model_apex;const expm=(MM&&MM.exposure_mult)||1;
@@ -201,6 +206,7 @@ function openTrade(k){const t=D.recent_trades[k];const c=t.direction==='LONG'?'v
  $('tm_sub').textContent=t.market+' · '+t.entry_dt+(t.open?' → now (open)':' → '+t.exit_dt);
  $('tm_body').innerHTML=[
    ['Entry',`$${f0(t.entry)} · ${t.entry_dt}`],
+   ['Entry size',t.entry_x?(t.entry_x+'× of equity'+(t.max_x&&t.max_x!==t.entry_x?(' (peak '+t.max_x+'×)'):'')):'—'],
    [t.open?'Now (last close)':'Exit',t.open?`$${f0(D.price)} · ${D.as_of}`:`$${f0(t.exit)} · ${t.exit_dt}`],
    ['Spot 1× move',`<span class="${r1>=0?'pos':'neg'}">${(r1*100).toFixed(1)}%</span>`],
    [t.open?'Max B return (running)':'Max B return (realized)',`<span class="${ra>=0?'pos':'neg'}">${(ra*100).toFixed(1)}%</span>`],
