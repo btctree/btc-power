@@ -16,7 +16,9 @@ permissions:
 
 concurrency:
   group: btc-power
-  cancel-in-progress: false
+  cancel-in-progress: true   # let a newer run supersede an in-progress one -> avoids GitHub Pages
+                             # "deployment failed, try again later" collisions from overlapping deploys
+                             # (safe: CI only builds the dashboard; trading runs locally, not here)
 
 jobs:
   signal:
