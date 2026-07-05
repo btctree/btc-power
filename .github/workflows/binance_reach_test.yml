@@ -1,0 +1,15 @@
+name: binance-reach-test
+on: [push, workflow_dispatch]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Can a GitHub runner reach Binance?
+        run: |
+          echo "runner public IP:"; curl -s https://api.ipify.org; echo; echo "---"
+          echo "GET api.binance.com /api/v3/time :"
+          curl -s -o body.txt -w "  HTTP %{http_code}\n" https://api.binance.com/api/v3/time || true
+          echo "  body: $(cat body.txt)"
+          echo "---"
+          echo "GET api.binance.com /sapi/v1/system/status :"
+          curl -s -o /dev/null -w "  HTTP %{http_code}\n" https://api.binance.com/sapi/v1/system/status || true
