@@ -18,7 +18,9 @@ import urllib.request, urllib.parse, urllib.error
 
 HERE = os.path.dirname(__file__)
 OUT = os.path.join(HERE, "..", "out")
-STATE = os.path.join(HERE, "..", "state.json")
+_sf = os.environ.get("STATE_FILE")
+STATE = (_sf if (_sf and os.path.isabs(_sf)) else
+         (os.path.join(HERE, _sf) if _sf else os.path.join(HERE, "..", "state.json")))
 
 
 def load_env():

@@ -8,3 +8,9 @@ __pycache__/
 .env
 # CI refreshes these
 out/widened_search.log
+# LOCAL RUNNER — never commit runtime state, logs, or ANY api keys
+state_local.json
+logs/
+.binance
+.secrets
+*.key
