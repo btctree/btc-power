@@ -12,5 +12,7 @@ $env:PYTHONIOENCODING = "utf-8"
 "[$ts] === local runner start ===" | Out-File -Append -Encoding utf8 $log
 python src\fetch_data.py            *>> $log      # refresh BTC daily data
 python src\growth_engine.py         *>> $log      # recompute Max B -> out/results_live.json
+$env:ORDER_TYPE = "MARKET"                        # reliable fills so the position tracks the model
+python src\binance_trader.py        *>> $log      # AUTOTRADE: reconcile Binance account to target
 python src\telegram_signal.py --mode watch *>> $log   # notify on any required action + daily report
 "[$ts] === done ===" | Out-File -Append -Encoding utf8 $log
