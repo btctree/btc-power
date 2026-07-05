@@ -209,6 +209,14 @@ def main():
     # ---- watch mode (tracks the Max B model) ----
     tg_selfcheck()
     s = load_state(); today = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d")
+    # HEALTH CHECK: detect an offline gap (laptop was off/asleep) and flag it on recovery
+    now_ts = dt.datetime.now(dt.timezone.utc).timestamp()
+    prev_ts = s.get("last_run_ts"); gap_hrs = float(os.environ.get("HEARTBEAT_GAP_HRS", "25"))
+    if prev_ts and (now_ts - prev_ts) / 3600.0 >= gap_hrs:
+        gh = (now_ts - prev_ts) / 3600.0
+        tg(f"<b>⚠️ BTC POWER — auto-trader was OFFLINE ~{gh:.0f}h</b>\n"
+           f"No run since the last heartbeat (laptop off / asleep / unplugged). Resuming now; any missed "
+           f"daily signal is being applied on this run. If this recurs, an always-on host avoids the gap.")
     price = live_price(d["price"]); cur = B["direction"]
     # 1) intraday cut-loss breach on an open position
     if s["direction"] in ("LONG", "SHORT") and s.get("cutloss"):
@@ -234,6 +242,7 @@ def main():
     # 3) once-a-day full report
     if s.get("last_report_date") != today:
         tg(daily_report(d, url)); s["last_report_date"] = today
+    s["last_run_ts"] = now_ts       # heartbeat for offline-gap detection
     json.dump(s, open(STATE, "w"), indent=2)
     print("[watch] Max B:", cur, "| state:", s)
 
