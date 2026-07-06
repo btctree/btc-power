@@ -1,0 +1,2 @@
+# Keep shell scripts LF so they run on the Linux (Oracle Cloud) VM even when edited on Windows
+*.sh text eol=lf
