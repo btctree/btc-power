@@ -74,10 +74,20 @@ def _get(base, path, params=None):
         return json.loads(r.read())
 
 
+def server_time_offset(c):
+    """ms to add to local time so our timestamp matches Binance's server clock.
+    Prevents error -1021 when the laptop's clock drifts (e.g. after waking from sleep)."""
+    try:
+        srv = int(_get(c["base"], "/api/v3/time")["serverTime"])
+        return srv - int(time.time() * 1000)
+    except Exception:
+        return 0
+
+
 def _signed(c, method, path, params):
     params = dict(params or {})
-    params["timestamp"] = int(time.time() * 1000)
-    params["recvWindow"] = 5000
+    params["timestamp"] = int(time.time() * 1000) + c.get("time_offset", 0)
+    params["recvWindow"] = 10000
     qs = urllib.parse.urlencode(params)
     sig = hmac.new(c["secret"].encode(), qs.encode(), hashlib.sha256).hexdigest()
     url = f"{c['base']}{path}?{qs}&signature={sig}"
@@ -157,6 +167,7 @@ def place(c, plan, px):
 def main():
     load_env()
     c = cfg()
+    c["time_offset"] = server_time_offset(c)   # sync to Binance clock (fixes -1021 after sleep drift)
     d = json.load(open(os.path.join(OUT, "results_live.json")))
     g = d.get("model_growth") or d.get("model_apex") or d["model_8b"]
     sign = 1 if g["direction"] == "LONG" else (-1 if g["direction"] == "SHORT" else 0)
