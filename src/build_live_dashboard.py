@@ -46,7 +46,9 @@ header{position:sticky;top:0;z-index:5;background:linear-gradient(#0b0e14ee,#0b0
 .scb{font-size:11px;font-weight:700;padding:6px 9px;border-radius:8px;background:#0e131d;border:1px solid var(--line);color:var(--mut)}.scb.on{background:#13324a;color:var(--blu);border-color:var(--blu)}
 canvas{width:100%;height:300px;display:block;border-radius:10px;touch-action:none;background:#0c1018;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 #p-perf,#p-perf *{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
-.ctrls{display:flex;gap:6px;margin-top:8px}.ctrls button{flex:1;font-size:12px;font-weight:600;padding:7px;border-radius:8px;background:#0e131d;border:1px solid var(--line);color:var(--ink)}
+.ctrls{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.ctrls button{flex:1 1 40px;font-size:12px;font-weight:600;padding:7px 4px;border-radius:8px;background:#0e131d;border:1px solid var(--line);color:var(--ink)}
+.ctrls input{flex:1 1 90px;min-width:0;font-size:12px;padding:7px;border-radius:8px;background:#0e131d;border:1px solid var(--line);color:var(--ink)}
+.ctrls input::placeholder{color:#5b6878}
 .trade{background:#0e131d;border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:7px;font-size:12px}
 .trade .t1{display:flex;justify-content:space-between;font-weight:700;font-size:13px}.trade .t2{color:var(--mut);margin-top:3px;display:flex;justify-content:space-between}
 .risknote{background:#23200f;border:1px solid #4a431d;border-radius:10px;padding:9px;color:#ffe39a;font-size:11.5px;margin-top:8px}
@@ -111,7 +113,9 @@ canvas{width:100%;height:300px;display:block;border-radius:10px;touch-action:non
     <div class="scbtns" id="scbtns"></div>
     <canvas id="chart"></canvas>
     <div class="legend" style="margin-top:6px;flex-wrap:wrap"><span><b style="color:var(--grn)">▲</b> enter long</span><span><b style="color:var(--red)">▼</b> enter short</span><span><b style="color:var(--grn)">△</b><b style="color:var(--red)">▽</b> exit</span><span class="mut">tap a Trade to pin</span></div>
-    <div class="ctrls"><button onclick="setRange(365)">1Y</button><button onclick="setRange(1095)">3Y</button><button onclick="setRange(1825)">5Y</button><button onclick="setRange(0)">All</button><button onclick="toggleUnit()" id="unitBtn">$</button></div>
+    <div class="ctrls"><button onclick="setRange(1)">1D</button><button onclick="setRange(7)">1W</button><button onclick="setRange(30)">1M</button><button onclick="setRange(182)">6M</button><button onclick="setRange(365)">1Y</button><button onclick="setRange(1095)">3Y</button><button onclick="setRange(1825)">5Y</button><button onclick="setRange(0)">All</button><button onclick="toggleUnit()" id="unitBtn">$</button></div>
+    <div class="ctrls"><input id="cf_funds" type="number" min="0" placeholder="Start $ (e.g. 10000)"><input id="cf_start" type="date"><input id="cf_end" type="date"><button onclick="applyCustom()" style="flex:0 1 70px;background:#13324a;color:var(--blu);border-color:var(--blu)">Apply</button></div>
+    <div class="note" style="margin-top:4px">Custom view: set a starting fund and/or date window — the curve re-bases to "what if I started with that amount on that date". Leave blank = actual $500 backtest.</div>
     <div class="ctrls"><button onclick="zoomBtn(0.7)">＋</button><button onclick="zoomBtn(1.4)">－</button><button onclick="toggleScale()" id="scaleBtn">Log</button><button onclick="toggleMarks()" id="markBtn">Marks ●</button><button onclick="resetView()">Reset</button></div>
     <div class="row" style="margin-top:8px"><span class="k">Final $500→</span><span class="v" id="m_final"></span></div>
     <div class="row"><span class="k">CAGR / maxDD</span><span class="v" id="m_cd"></span></div>
@@ -237,18 +241,25 @@ function toggleScale(){logScale=!logScale;$('scaleBtn').textContent=logScale?'Lo
 function toggleMarks(){showMarks=!showMarks;$('markBtn').textContent=showMarks?'Marks ●':'Marks ○';draw();}
 function resetView(){view={a:0,b:D.dates.length-1};hover=null;pinned=null;draw();}
 function setRange(d){const L=D.dates.length-1;view=d?{a:Math.max(0,L-d),b:L}:{a:0,b:L};hover=null;draw();}
+function applyCustom(){const L=D.dates.length-1;const ds=$('cf_start').value,de=$('cf_end').value;let a=view.a,b=view.b;
+ if(ds){a=D.dates.findIndex(x=>x>=ds);if(a<0)a=0;}
+ if(de){b=L;for(let i=L;i>=0;i--){if(D.dates[i]<=de){b=i;break;}}}
+ if(ds||de){if(b<=a)b=Math.min(a+1,L);view={a:a,b:b};}
+ hover=null;draw();}
 function toggleUnit(){unitX=!unitX;document.getElementById('unitBtn').textContent=unitX?'×':'$';draw();}
 function draw(){const cv=$('chart');if(!cv.clientWidth)return;const dpr=window.devicePixelRatio||1,W=cv.clientWidth,H=300;
  cv.width=W*dpr;cv.height=H*dpr;const x=cv.getContext('2d');x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,W,H);
  const eq=D.scenarios[scenario].eq,a=Math.max(0,Math.floor(view.a)),b=Math.min(eq.length-1,Math.ceil(view.b));
- let lo=Infinity,hi=-Infinity;for(let i=a;i<=b;i++){const v=eq[i];if(v>0){if(v<lo)lo=v;if(v>hi)hi=v;}}if(!isFinite(lo)){lo=1;hi=10;}
+ let lo=Infinity,hi=-Infinity,sv=0;for(let i=a;i<=b;i++){const v=eq[i];if(v>0){if(!sv)sv=v;if(v<lo)lo=v;if(v>hi)hi=v;}}if(!isFinite(lo)){lo=1;hi=10;}if(!(hi>lo))hi=lo*1.0001+1e-9;
+ const _f=document.getElementById('cf_funds');const fundsV=_f?parseFloat(_f.value):0;
+ const BF=(fundsV>0&&sv>0)?fundsV/sv:1;                 // re-base: display as if you started the window with fundsV
  const PL=46,PR=8,PT=10,PB=18;const px=i=>PL+(W-PL-PR)*(i-a)/Math.max(1,b-a);
  const ya=logScale?Math.log10(Math.max(lo,1e-6)):lo,yb=logScale?Math.log10(hi):hi;
  const py=v=>{const t=((logScale?Math.log10(Math.max(v,1e-6)):v)-ya)/Math.max(1e-9,yb-ya);return H-PB-(H-PT-PB)*t;};
  x.strokeStyle='#1c2433';x.fillStyle='#6b7787';x.font='9px sans-serif';
  const fk=v=>v>=1e9?'$'+(Math.round(v/1e8)/10)+'B':v>=1e6?'$'+(Math.round(v/1e5)/10)+'M':v>=1e3?'$'+(Math.round(v/100)/10)+'k':'$'+Math.round(v);
  const fx=v=>v>=1e6?(Math.round(v/1e5)/10)+'M×':v>=1e3?(Math.round(v/100)/10)+'k×':(v>=10?Math.round(v):Math.round(v*10)/10)+'×';
- const U=unitX?1/500:1, fl=unitX?fx:fk;              // × mode: value as multiple of the $500 start
+ const U=unitX?1/(sv||500):BF, fl=unitX?fx:fk;       // × mode: multiple of the visible window's start
  const span=yb-ya;
  if(logScale&&span>=1){
   // adaptive 1-2-5 log ticks IN DISPLAY UNITS ($ or ×): fills the gaps between powers of 10
@@ -269,7 +280,7 @@ function draw(){const cv=$('chart');if(!cv.clientWidth)return;const dpr=window.d
  // hover tooltip
  if(hover!=null&&hover>=a&&hover<=b){const X=px(hover),v=eq[hover];x.strokeStyle='#4da3ff';x.lineWidth=1;x.setLineDash([4,3]);x.beginPath();x.moveTo(X,PT);x.lineTo(X,H-PB);x.stroke();x.setLineDash([]);
   if(v>0){x.fillStyle='#4da3ff';x.beginPath();x.arc(X,py(v),3.5,0,7);x.fill();}
-  const lines=[(D.dates[hover]||'').slice(0,10),'Equity $'+f0(v)+' ('+(Math.round(v/500*10)/10)+'×)','BTC $'+f0(D.close[hover])];
+  const lines=[(D.dates[hover]||'').slice(0,10),'Equity $'+f0(v*BF)+' ('+(Math.round(v/(sv||500)*100)/100)+'×)','BTC $'+f0(D.close[hover])];
   x.font='11px sans-serif';const tw=Math.max(...lines.map(s=>x.measureText(s).width))+12;const tx=Math.min(W-tw-4,Math.max(4,X+8));
   x.fillStyle='#0e1622ee';x.strokeStyle='#2a3650';x.lineWidth=1;x.beginPath();x.rect(tx,PT+2,tw,46);x.fill();x.stroke();
   x.fillStyle='#cfe3ff';lines.forEach((s,k)=>x.fillText(s,tx+6,PT+16+k*14));}
