@@ -1,0 +1,6 @@
+{
+  "applies_to": {"direction": "SHORT", "entry_date": "2026-07-30"},
+  "status": "TRADE CANCELLED ON THE LIVE ACCOUNT",
+  "note": "This SHORT was not executed correctly live (entered 19h late by an executor bug, fixed 2026-07-31) and was closed manually at 19:35 UTC. The account is FLAT and auto-trading is paused; it resumes automatically on the model's next trade.",
+  "set_at": "2026-07-31T20:00:00Z"
+}
