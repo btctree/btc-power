@@ -11,6 +11,19 @@ import os, json
 HERE = os.path.dirname(__file__); OUT = os.path.join(HERE, "..", "out")
 D = json.load(open(os.path.join(OUT, "results_live.json")))
 DATA = json.dumps(D)
+
+# Execution-status banner (exec_status.json at repo root, optional): rendered only while its
+# applies_to still matches the model's CURRENT trade, so it self-expires on the next signal.
+BANNER = ""
+try:
+    ES = json.load(open(os.path.join(HERE, "..", "exec_status.json")))
+    _g = D.get("model_growth") or {}
+    _ap = ES.get("applies_to") or {}
+    if _ap.get("direction") == _g.get("direction") and _ap.get("entry_date") == _g.get("entry_date"):
+        BANNER = ('<div class="risknote" style="margin:0 0 10px">⚠️ <b>LIVE EXECUTION: '
+                  + ES.get("status", "") + "</b> — " + ES.get("note", "") + "</div>")
+except (FileNotFoundError, json.JSONDecodeError):
+    pass
 json.dump({"name": "BTC Power Signal", "short_name": "BTC Power", "display": "standalone",
            "background_color": "#0b0e14", "theme_color": "#0b0e14", "start_url": "./index.html"},
           open(os.path.join(OUT, "manifest.webmanifest"), "w"))
@@ -65,6 +78,7 @@ canvas{width:100%;height:300px;display:block;border-radius:10px;touch-action:non
 <div class="px">$<span id="pxlive">…</span><small id="pxsig"></small></div>
 <div class="sub2" id="livenote">live price · updates hourly</div>
 <div class="chip" id="chip"></div></header>
+__EXECBANNER__
 
 <div class="pane on" id="p-signal">
   <div class="card feat"><div class="h">⚡ Max B Model · 5× vol-targeted + cycle shields</div>
@@ -298,7 +312,7 @@ function switchTab(p){document.querySelectorAll('.tab').forEach(x=>x.classList.t
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>switchTab(t.dataset.p));
 updM();window.addEventListener('resize',()=>{if($('p-perf').classList.contains('on'))draw();});
 </script></body></html>"""
-out = HTML.replace("__DATA__", DATA)
+out = HTML.replace("__DATA__", DATA).replace("__EXECBANNER__", BANNER)
 for fn in ["index.html", "dashboard_live.html"]:
     open(os.path.join(OUT, fn), "w", encoding="utf-8").write(out)
 print("wrote index.html + dashboard_live.html (", len(out), "bytes )")
