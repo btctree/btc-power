@@ -150,7 +150,13 @@ def reconcile(target_exposure, equity_usdt, btc_net, px, step, min_notional, c):
 
 def place(c, plan, px):
     """Place a cross-margin order with auto borrow/repay. Only reached when armed + not skipped."""
-    side_effect = "MARGIN_BUY" if plan["side"] == "BUY" else "AUTO_REPAY"  # borrow to add / repay to reduce
+    # Side-effect must follow INTENT, not side: a SELL that takes net position below zero must
+    # BORROW the shortfall (MARGIN_BUY); a BUY while net-short is a cover and must REPAY the BTC
+    # debt (AUTO_REPAY). Side alone chooses wrong on both flip directions.
+    if plan["side"] == "SELL":
+        side_effect = "MARGIN_BUY" if plan["target_btc"] < 0 else "AUTO_REPAY"
+    else:
+        side_effect = "AUTO_REPAY" if plan["current_btc"] < 0 else "MARGIN_BUY"
     coid = "btcpwr-" + dt.datetime.now(dt.timezone.utc).strftime("%Y%m%d") + "-" + plan["side"]
     params = dict(symbol=c["symbol"], side=plan["side"], quantity=f"{plan['qty']:.6f}",
                   sideEffectType=side_effect, newClientOrderId=coid, isIsolated="FALSE")
