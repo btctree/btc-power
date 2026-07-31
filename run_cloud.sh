@@ -12,6 +12,7 @@ mkdir -p logs
   echo "[$(date -u '+%Y-%m-%d %H:%M:%S') UTC] === cloud runner start ==="
   "$PY" src/fetch_data.py
   "$PY" src/growth_engine.py
+  "$PY" src/stop_guard.py
   "$PY" src/binance_trader.py
   "$PY" src/telegram_signal.py --mode watch
   echo "[$(date -u '+%Y-%m-%d %H:%M:%S') UTC] === done ==="
