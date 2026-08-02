@@ -50,6 +50,20 @@ def log(msg):
         pass
 
 
+def tg_send(msg):
+    """Best-effort Telegram alert. Execution problems must never be silent (2026-07-31 lesson)."""
+    tok = os.environ.get("TELEGRAM_BOT_TOKEN"); chat = os.environ.get("TELEGRAM_CHAT_ID")
+    if not tok or not chat:
+        return
+    try:
+        data = urllib.parse.urlencode({"chat_id": chat, "text": msg}).encode()
+        req = urllib.request.Request(f"https://api.telegram.org/bot{tok}/sendMessage", data=data)
+        with urllib.request.urlopen(req, timeout=10) as r:
+            r.read()
+    except Exception:
+        pass
+
+
 # ---------- config ----------
 def cfg():
     testnet = os.environ.get("BINANCE_TESTNET", "1") == "1"       # SAFE default: testnet
@@ -177,11 +191,18 @@ def main():
     d = json.load(open(os.path.join(OUT, "results_live.json")))
     g = d.get("model_growth") or d.get("model_apex") or d["model_8b"]
     sign = 1 if g["direction"] == "LONG" else (-1 if g["direction"] == "SHORT" else 0)
-    target_exposure = sign * float(g.get("exposure_mult") or 0)
+    target_exposure = max(-5.0, min(5.0, sign * float(g.get("exposure_mult") or 0)))  # model cap is 5x
     log(f"model target: {g['action']} (exposure {target_exposure:+.2f}x) as of {d['as_of']}")
 
     if os.path.exists(os.path.join(ROOT, "STOP")):
         log("KILL-SWITCH present (btc_signal/STOP) — trading frozen, exiting."); return
+    try:  # staleness gate: never reconcile real money against an old signal
+        age_days = (dt.datetime.now(dt.timezone.utc).date() - dt.date.fromisoformat(str(d["as_of"]))).days
+    except Exception:
+        age_days = None
+    if age_days is None or age_days > 2:
+        msg = f"STALE SIGNAL: results_live.json as_of={d.get('as_of')!r} ({age_days} days old) — refusing to trade."
+        log(msg); tg_send("BTC Power: " + msg); return
     if not c["key"] or not c["secret"]:
         log("no BINANCE_API_KEY/SECRET in .env — cannot read account. (dry-run of math only)")
         log(f"[{'TESTNET' if c['testnet'] else 'MAINNET'}] would target {target_exposure:+.2f}x of equity. "
@@ -191,7 +212,8 @@ def main():
         step, min_notional = symbol_filters(c)
         equity, btc_net, usdt_net, px = margin_account(c)
     except Exception as e:
-        log(f"account/market read FAILED: {e}"); return
+        log(f"account/market read FAILED: {e}")
+        tg_send(f"BTC Power: account/market read FAILED — no reconcile this run. {e}"); return
     log(f"account [{'TESTNET' if c['testnet'] else 'MAINNET'}]: equity ${equity:,.2f} · BTC net {btc_net:+.6f} "
         f"· USDT net ${usdt_net:,.2f} · price ${px:,.2f}")
 
@@ -199,16 +221,26 @@ def main():
     log(f"plan: {plan['side']} {plan['qty']:.6f} BTC (~${plan['delta_usd']:,.0f}) "
         f"| current {plan['current_btc']:+.6f} -> target {plan['target_btc']:+.6f} BTC")
     if plan["skip"]:
-        log(f"NO ORDER: {plan['reason']}"); return
+        log(f"NO ORDER: {plan['reason']}")
+        if "BLOCKED" in (plan["reason"] or ""):
+            tg_send(f"BTC Power: order BLOCKED — {plan['reason']}")
+        return
 
     if not c["live"]:
         log(f"DRY-RUN (LIVE_TRADING!=1): would {plan['side']} {plan['qty']:.6f} BTC (~${plan['delta_usd']:,.0f}). "
             f"Nothing placed. Set LIVE_TRADING=1 to arm."); return
     if not c["testnet"]:
         log("ARMED ON MAINNET — placing REAL order.")
-    resp = place(c, plan, px)
+    try:
+        resp = place(c, plan, px)
+    except Exception as e:  # a rejected order must NEVER die silently (the 19h-short lesson)
+        msg = f"ORDER FAILED: {plan['side']} {plan['qty']:.6f} BTC (~${plan['delta_usd']:,.0f}) — {e}"
+        log(msg); tg_send("BTC Power EXECUTION FAILURE — " + msg)
+        sys.exit(1)
     log(f"ORDER PLACED: id {resp.get('orderId')} status {resp.get('status')} "
         f"clientId {resp.get('clientOrderId')}")
+    tg_send(f"BTC Power: {plan['side']} {plan['qty']:.6f} BTC (~${plan['delta_usd']:,.0f}) placed — "
+            f"id {resp.get('orderId')} {resp.get('status')}")
 
 
 if __name__ == "__main__":

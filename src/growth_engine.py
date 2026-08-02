@@ -17,7 +17,10 @@ REG_BIAS = {"STRONG_UP": "UP", "TREND_UP": "UP", "PULLBACK_UP": "UP", "BOUNCE_DO
 
 
 def trail_rank(a, w=365):
-    return pd.Series(a).rolling(w, min_periods=60).apply(lambda x: (x.iloc[-1] >= x).mean(), raw=False).to_numpy()
+    # NaN latest value must rank as NaN (gate skipped), NOT 0.0: (NaN >= x) is all-False, whose mean
+    # 0.0 silently fired the fr<0.10 short-gate for every day after funding.csv ended (halved shorts).
+    return pd.Series(a).rolling(w, min_periods=60).apply(
+        lambda x: np.nan if x.iloc[-1] != x.iloc[-1] else (x.iloc[-1] >= x).mean(), raw=False).to_numpy()
 
 
 def main(save_as="results_live.json"):
@@ -34,7 +37,8 @@ def main(save_as="results_live.json"):
     if not fmap:
         print("[growth] WARNING: data/funding.csv missing -> VOL+FUND gates DISABLED (results will differ).")
     elif max(fmap) < dates[-1]:
-        print(f"[growth] note: funding.csv ends {max(fmap)} (latest bar {dates[-1]}) -> recent FUND gates inactive.")
+        print(f"[growth] WARNING: funding.csv ends {max(fmap)} (latest bar {dates[-1]}) -> FUND gate "
+              f"skipped for dates without data; shorts run UNGATED there. Refresh data/funding.csv.")
     funding = np.array([fmap.get(d, np.nan) for d in dates])
     vr = trail_rank(rv); fr = trail_rank(funding)
     gl = np.ones(n); gs = np.ones(n)

@@ -2,6 +2,7 @@
 # BTC Power - 24/7 cloud runner (Oracle Cloud VM / any Linux). Scheduled hourly via cron.
 # Refresh data -> recompute Max B -> reconcile Binance account -> Telegram alert.
 # Secrets come from the git-ignored .env next to this script. Never commit .env.
+set -euo pipefail    # fail-frozen: if any step fails, later steps (incl. the trader) must NOT run
 cd "$(dirname "$0")" || exit 1
 export STATE_FILE="../state_local.json"     # local-only position state (no clash with CI's state.json)
 export ORDER_TYPE="MARKET"                   # reliable fills so the position tracks the model

@@ -45,10 +45,24 @@ def main():
     for row in out:
         seen[row[0]] = row
     out = [seen[k] for k in sorted(seen)]
-    with open(OUT, "w", newline="") as f:
+    # SAFETY: never overwrite good history with a suspicious fetch (empty/truncated/backwards),
+    # and write atomically so a crash mid-write can't leave a half file for the engine to read.
+    prev_rows, prev_last = 0, ""
+    if os.path.exists(OUT):
+        with open(OUT) as f:
+            prev = f.read().splitlines()
+        if len(prev) > 1:
+            prev_rows = len(prev) - 1
+            prev_last = prev[-1].split(",")[0]
+    if not out or len(out) < max(3000, prev_rows - 5) or (prev_last and out[-1][0] < prev_last):
+        raise SystemExit(f"REFUSING to write btc_daily.csv: fetched {len(out)} rows (prev {prev_rows}), "
+                         f"last date {out[-1][0] if out else 'NONE'} (prev {prev_last})")
+    tmp = OUT + ".tmp"
+    with open(tmp, "w", newline="") as f:
         w = csv.writer(f)
         w.writerow(["date", "open", "high", "low", "close", "volume"])
         w.writerows(out)
+    os.replace(tmp, OUT)
     print(f"saved {len(out)} daily candles -> {OUT}")
     print(f"range: {out[0][0]} .. {out[-1][0]}")
     print(f"first close={out[0][4]}  last close={out[-1][4]}")

@@ -30,6 +30,11 @@ def main():
         return
     want = open(MARKER, encoding="utf-8").read().strip()
     g = json.load(open(os.path.join(ROOT, "out", "results_live.json"), encoding="utf-8")).get("model_growth") or {}
+    if not g.get("direction") or (g.get("direction") in ("LONG", "SHORT") and not g.get("entry_date")):
+        # malformed model output must fail FROZEN; a legitimate FLAT (entry_date None) passes through
+        # so an exit-to-FLAT still counts as "the model's next trade" and auto-resumes.
+        log("model_growth incomplete (direction/entry_date) — leaving STOP in place.")
+        return
     cur = f"{g.get('direction')} {g.get('entry_date')}"
     if cur == want:
         log(f"model trade unchanged ({cur}) — STOP stays, no trading.")
@@ -44,4 +49,3 @@ if __name__ == "__main__":
         main()
     except Exception as e:  # any failure must leave STOP untouched
         log(f"error ({e}) — leaving STOP in place.")
-
