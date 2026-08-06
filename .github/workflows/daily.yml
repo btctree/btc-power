@@ -31,9 +31,15 @@ jobs:
       - run: pip install -r requirements.txt
       - name: Refresh data + signal + dashboard
         working-directory: src
+        env:
+          # READ-ONLY Binance key (view balances/trades only - cannot trade or withdraw).
+          # Absent secrets -> real_pnl.py skips and the dashboard shows the model view only.
+          BINANCE_RO_KEY: ${{ secrets.BINANCE_RO_KEY }}
+          BINANCE_RO_SECRET: ${{ secrets.BINANCE_RO_SECRET }}
         run: |
           python fetch_data.py
           python growth_engine.py
+          python real_pnl.py
           python build_live_dashboard.py
       - name: Telegram watch (entry / exit / stop / daily report)
         working-directory: src
