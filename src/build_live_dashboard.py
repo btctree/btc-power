@@ -155,7 +155,7 @@ __EXECBANNER__
   <div class="tab" data-p="trades"><span class="ic">🧾</span>Trades</div>
 </nav>
 <script>
-const D=__DATA__;
+const D=__DATA__;const R=__REAL__;
 const f0=x=>x==null?'—':Number(x).toLocaleString(undefined,{maximumFractionDigits:0});
 const fp=x=>x==null||isNaN(x)?'—':(x*100).toFixed(1)+'%';const f2=x=>x==null||isNaN(x)?'—':Number(x).toFixed(2);
 const $=id=>document.getElementById(id);
@@ -211,15 +211,23 @@ $('rmap').innerHTML=Object.entries(D.regime_bias).map(([k,b])=>`<div class="row"
 // trades (tap a row -> detail popup + jump to chart)
 const tret=t=>(t.apex_ret!=null?t.apex_ret:t.ret);
 $('tradelist').innerHTML=D.recent_trades.map((t,k)=>{const c=t.direction==='LONG'?'var(--grn)':'var(--red)';const r=tret(t);const rc=r>=0?'pos':'neg';
- if(t.open) return `<div class="trade" onclick="openTrade(${k})" style="border-color:var(--blu)"><div class="t1"><span style="color:${c}">● CURRENT · ${t.direction} · ${t.strategy}</span><span class="${rc}" id="open_ret">${(r*100).toFixed(1)}%</span></div>
+ if(t.open){const RO=(R&&R.open)?R.open:null;
+ const head=RO?`<span class="${RO.unrealized_usd>=0?'pos':'neg'}" id="open_ret">${RO.unrealized_usd>=0?'+':''}$${RO.unrealized_usd.toFixed(2)} · ${RO.unrealized_pct_equity>=0?'+':''}${RO.unrealized_pct_equity.toFixed(1)}%</span>`
+              :`<span class="${rc}" id="open_ret">${(r*100).toFixed(1)}%</span>`;
+ const realline=RO?`<div class="t2"><span>real fills: avg $${f0(RO.avg_entry)} × ${RO.qty} · fees $${RO.fees_usdt.toFixed(2)} incl.</span><span>model est.: <span id="open_ret_model" class="${rc}">${(r*100).toFixed(1)}%</span></span></div>`:'';
+ return `<div class="trade" onclick="openTrade(${k})" style="border-color:var(--blu)"><div class="t1"><span style="color:${c}">● CURRENT · ${t.direction} · ${t.strategy}</span>${head}</div>
  <div class="t2"><span>open since ${t.entry_dt}</span><span>${t.market}</span></div>
- <div class="t2"><span>in $${f0(t.entry)}${t.entry_x?(' @'+t.entry_x+'×'):''} · now $<span id="open_now">${f0(D.price)}</span></span><span>model est. (50bp slip) · open ›</span></div></div>`;
+ <div class="t2"><span>in $${f0(t.entry)}${t.entry_x?(' @'+t.entry_x+'×'):''} · now $<span id="open_now">${f0(D.price)}</span></span><span>${RO?'live account P&L · open ›':'model est. (50bp slip) · open ›'}</span></div>${realline}</div>`;}
  return `<div class="trade" onclick="openTrade(${k})"><div class="t1"><span style="color:${c}">${t.direction} · ${t.strategy}</span><span class="${rc}">${(r*100).toFixed(1)}%</span></div>
  <div class="t2"><span>${t.entry_dt} → ${t.exit_dt}</span><span>${t.market}</span></div>
  <div class="t2"><span>in $${f0(t.entry)}${t.entry_x?(' @'+t.entry_x+'×'):''} · out $${f0(t.exit)}</span><span>${t.reason} ›</span></div></div>`}).join('');
 // keep the open position's "now" price + running return fresh with the live price
 function updOpen(p){const t=D.recent_trades.find(x=>x.open);if(!t)return;const nb=$('open_now');if(nb)nb.textContent=f0(p);
- const rb=$('open_ret');if(!rb)return;const dir=t.direction==='LONG'?1:-1;const MM=D.model_growth||D.model_apex;const expm=(MM&&MM.exposure_mult)||1;
+ const RO=(R&&R.open)?R.open:null;
+ if(RO){const s=RO.side==='LONG'?1:-1;const u=(p-RO.avg_entry)*s*RO.qty-RO.fees_usdt;
+  const pc=R.equity_usdt?u/R.equity_usdt*100:0;const el=$('open_ret');
+  if(el){el.textContent=(u>=0?'+':'')+'$'+u.toFixed(2)+' · '+(pc>=0?'+':'')+pc.toFixed(1)+'%';el.className=u>=0?'pos':'neg';}}
+ const rb=RO?$('open_ret_model'):$('open_ret');if(!rb)return;const dir=t.direction==='LONG'?1:-1;const MM=D.model_growth||D.model_apex;const expm=(MM&&MM.exposure_mult)||1;
  const base=(t.apex_ret!=null?t.apex_ret:0),since=(p/D.price-1)*dir*expm,r=(1+base)*(1+since)-1;
  rb.textContent=(r*100).toFixed(1)+'%';rb.className=r>=0?'pos':'neg';}
 updOpen(D.price);
@@ -312,7 +320,13 @@ function switchTab(p){document.querySelectorAll('.tab').forEach(x=>x.classList.t
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>switchTab(t.dataset.p));
 updM();window.addEventListener('resize',()=>{if($('p-perf').classList.contains('on'))draw();});
 </script></body></html>"""
-out = HTML.replace("__DATA__", DATA).replace("__EXECBANNER__", BANNER)
+# Real account P&L (out/real_pnl.json, optional): written by real_pnl.py from actual fills.
+# Absent (e.g. no read-only key configured) -> R is null and the page shows the model view only.
+try:
+    REAL = json.dumps(json.load(open(os.path.join(OUT, "real_pnl.json"))))
+except Exception:
+    REAL = "null"
+out = HTML.replace("__DATA__", DATA).replace("__EXECBANNER__", BANNER).replace("__REAL__", REAL)
 for fn in ["index.html", "dashboard_live.html"]:
     open(os.path.join(OUT, fn), "w", encoding="utf-8").write(out)
 print("wrote index.html + dashboard_live.html (", len(out), "bytes )")
