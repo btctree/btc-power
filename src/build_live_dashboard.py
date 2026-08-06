@@ -213,7 +213,7 @@ const tret=t=>(t.apex_ret!=null?t.apex_ret:t.ret);
 $('tradelist').innerHTML=D.recent_trades.map((t,k)=>{const c=t.direction==='LONG'?'var(--grn)':'var(--red)';const r=tret(t);const rc=r>=0?'pos':'neg';
  if(t.open) return `<div class="trade" onclick="openTrade(${k})" style="border-color:var(--blu)"><div class="t1"><span style="color:${c}">● CURRENT · ${t.direction} · ${t.strategy}</span><span class="${rc}" id="open_ret">${(r*100).toFixed(1)}%</span></div>
  <div class="t2"><span>open since ${t.entry_dt}</span><span>${t.market}</span></div>
- <div class="t2"><span>in $${f0(t.entry)}${t.entry_x?(' @'+t.entry_x+'×'):''} · now $<span id="open_now">${f0(D.price)}</span></span><span>running · open ›</span></div></div>`;
+ <div class="t2"><span>in $${f0(t.entry)}${t.entry_x?(' @'+t.entry_x+'×'):''} · now $<span id="open_now">${f0(D.price)}</span></span><span>model est. (50bp slip) · open ›</span></div></div>`;
  return `<div class="trade" onclick="openTrade(${k})"><div class="t1"><span style="color:${c}">${t.direction} · ${t.strategy}</span><span class="${rc}">${(r*100).toFixed(1)}%</span></div>
  <div class="t2"><span>${t.entry_dt} → ${t.exit_dt}</span><span>${t.market}</span></div>
  <div class="t2"><span>in $${f0(t.entry)}${t.entry_x?(' @'+t.entry_x+'×'):''} · out $${f0(t.exit)}</span><span>${t.reason} ›</span></div></div>`}).join('');

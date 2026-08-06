@@ -129,14 +129,76 @@ def price(c):
 
 
 def margin_account(c):
-    """Cross-margin account -> (equity_usdt, btc_net, usdt_net). btc_net = holding - borrowed."""
+    """Cross-margin account -> (equity_usdt, btc_net, usdt_net, px, btc_free, usdt_free)."""
     a = _signed(c, "GET", "/sapi/v1/margin/account", {})
     assets = {x["asset"]: x for x in a["userAssets"]}
     btc = assets.get("BTC", {}); usdt = assets.get("USDT", {})
     btc_net = float(btc.get("netAsset", 0)); usdt_net = float(usdt.get("netAsset", 0))
+    btc_free = float(btc.get("free", 0)); usdt_free = float(usdt.get("free", 0))
     px = price(c)
     equity_usdt = usdt_net + btc_net * px                       # 2-asset BTCUSDT approximation
-    return equity_usdt, btc_net, usdt_net, px
+    return equity_usdt, btc_net, usdt_net, px, btc_free, usdt_free
+
+
+def max_borrowable(c, asset):
+    """Binance's answer to 'how much of this asset can this account borrow right now'
+    (accounts for the 3x/5x cross-margin tier, collateral and per-asset caps).
+    Returns None on any error — callers must then fall back to try-and-alert."""
+    try:
+        r = _signed(c, "GET", "/sapi/v1/margin/maxBorrowable", {"asset": asset})
+        return float(r.get("amount", 0))
+    except Exception:
+        return None
+
+
+def afford(plan, c, px, step, btc_free, usdt_free):
+    """Cap the planned order to what the account can actually execute (2026-08-06 lesson:
+    the model wanted a 2.34x short but the account's borrow tier allowed less -> six -3006
+    rejections). Sizes down instead of failing; alerts when capped."""
+    if plan["skip"]:
+        return plan
+    if plan["side"] == "SELL":
+        if plan["target_btc"] < 0:      # opening/adding a short: sell free BTC + borrow the rest
+            mb = max_borrowable(c, "BTC")
+            cap = None if mb is None else max(0.0, btc_free) + mb * 0.995
+        else:                            # trimming a long: can only sell BTC actually held
+            cap = max(0.0, btc_free)
+    else:
+        eff_px = px * (1 + c["limit_offset_bp"] / 1e4)  # a BUY costs slightly above spot (limit cross/slippage)
+        if plan["current_btc"] < 0:      # covering a short (AUTO_REPAY): spend free USDT only
+            cap = max(0.0, usdt_free) * 0.999 / eff_px
+        else:                            # opening/adding a long: spend free USDT + borrow the rest
+            mb = max_borrowable(c, "USDT")
+            cap = None if mb is None else (max(0.0, usdt_free) + mb * 0.995) / eff_px
+    if cap is None or plan["qty"] <= cap:
+        return plan
+    capped = abs(round_step(cap, step))
+    msg = (f"order capped by available funds/borrow tier: wanted {plan['qty']:.6f} BTC "
+           f"(~${plan['qty']*px:,.0f}), account allows {capped:.6f} (~${capped*px:,.0f})")
+    log("AFFORDABILITY: " + msg)
+    if capped * px < max(5.0, c["min_delta_usd"]):
+        plan.update(skip=True, reason=f"affordable size ${capped*px:,.0f} below threshold — no trade")
+        _cap_alert_once_daily(msg)       # persists for days while the tier is exhausted: Telegram once/day
+        return plan
+    tg_send("BTC Power: " + msg)         # an actual reduced order is going out — always alert
+    plan.update(qty=capped, delta_usd=capped * px)
+    return plan
+
+
+def _cap_alert_once_daily(msg):
+    """The capped-below-threshold state repeats hourly while the borrow tier stays exhausted;
+    log every time (afford does), but Telegram at most once per UTC day."""
+    try:
+        p = os.path.join(ROOT, "logs", ".cap_alert_date")
+        today = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%d")
+        if os.path.exists(p) and open(p).read().strip() == today:
+            return
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        with open(p, "w") as f:
+            f.write(today)
+    except Exception:
+        pass
+    tg_send("BTC Power: " + msg + " (daily notice — hourly repeats are logged only)")
 
 
 # ---------- reconcile ----------
@@ -210,7 +272,7 @@ def main():
 
     try:
         step, min_notional = symbol_filters(c)
-        equity, btc_net, usdt_net, px = margin_account(c)
+        equity, btc_net, usdt_net, px, btc_free, usdt_free = margin_account(c)
     except Exception as e:
         log(f"account/market read FAILED: {e}")
         tg_send(f"BTC Power: account/market read FAILED — no reconcile this run. {e}"); return
@@ -220,6 +282,7 @@ def main():
     plan = reconcile(target_exposure, equity, btc_net, px, step, min_notional, c)
     log(f"plan: {plan['side']} {plan['qty']:.6f} BTC (~${plan['delta_usd']:,.0f}) "
         f"| current {plan['current_btc']:+.6f} -> target {plan['target_btc']:+.6f} BTC")
+    plan = afford(plan, c, px, step, btc_free, usdt_free)
     if plan["skip"]:
         log(f"NO ORDER: {plan['reason']}")
         if "BLOCKED" in (plan["reason"] or ""):
