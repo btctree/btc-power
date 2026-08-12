@@ -28,8 +28,11 @@ for attempt in 1 2; do
     echo "[publish] real_pnl.json unchanged — nothing to push"; exit 0
   fi
 
+  # NO [skip ci]: the publish must trigger the Pages rebuild, otherwise the public dashboard keeps
+  # serving the previous account snapshot until GitHub's (throttled) hourly schedule fires.
+  # Actions minutes are free on public repos; CI has no Telegram creds so no duplicate alerts.
   commit=$(git commit-tree "$tree" -p "$(git rev-parse origin/main)" \
-      -m "publish real account P&L snapshot [skip ci]" 2>/dev/null)
+      -m "publish real account P&L snapshot" 2>/dev/null)
   [ -n "$commit" ] || { echo "[publish] commit-tree failed"; exit 0; }
 
   if git push -q origin "$commit:refs/heads/main" 2>/dev/null; then
