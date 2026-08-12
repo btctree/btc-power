@@ -1,8 +1,18 @@
-# BTC Power — LOCAL runner (the single notifier + future trade executor).
-# Runs hourly via Windows Task Scheduler. Refreshes data + signal, then telegram watch
-# (entry / add / reduce / exit / flip / cut-loss + daily report). Reads secrets from .env.
+# BTC Power — LOCAL runner. *** DORMANT / EMERGENCY FALLBACK ONLY — DO NOT SCHEDULE. ***
+#
+# The live system runs on the Oracle VM (ubuntu@193.123.188.8) via run_cloud.sh, cron '5 * * * *'.
+# This script does the SAME job against the SAME real Binance account. Running both would make the
+# laptop and the VM fight over one position, each undoing the other's orders (that churn cost $20
+# on 2026-07-16/17). Its Windows scheduled task 'BTC-Signal-Local' was deleted 2026-08-11
+# (restorable from logs\BTC-Signal-Local.task.xml.bak).
+#
+# Two independent guards keep this copy inert: btc_signal\STOP exists (binance_trader.py exits on
+# it), and the local .env has LIVE_TRADING=0. To use this as a fallback if the VM is truly dead:
+#   1) confirm the VM is NOT trading (ssh ... 'ls ~/btc-power/STOP' or the VM is unreachable)
+#   2) delete btc_signal\STOP   3) set LIVE_TRADING=1 in .env   4) run this script by hand first
+# and read logs\trader.log before scheduling anything.
 $ErrorActionPreference = "Continue"
-$repo = "C:\Users\user\OneDrive\Desktop\New setup for BTC\btc_signal"
+$repo = Split-Path -Parent $MyInvocation.MyCommand.Path   # was a hardcoded path that no longer exists
 Set-Location $repo
 if (-not (Test-Path logs)) { New-Item -ItemType Directory logs | Out-Null }
 $log = Join-Path $repo "logs\local_runner.log"

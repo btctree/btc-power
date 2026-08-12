@@ -137,8 +137,11 @@ __EXECBANNER__
 </div>
 
 <div class="pane" id="p-trades">
-  <div class="card"><div class="h">Max B — recent 20 positions (entry → exit)</div>
-    <div class="note" style="margin:0 0 8px">Each = a position Max B held until its direction changed. % = the live model's realized equity return (after slippage). The top row is the <b>current open position</b> — it shows the latest price and a running return, no exit yet.</div>
+  <div class="card" id="realcard" style="display:none"><div class="h">Your account — closed positions (real fills)</div>
+    <div class="note" style="margin:0 0 8px">Actual executed round trips on the Binance account. <b>P&amp;L is real and net of all trading fees</b> — no estimates. <span id="realtot"></span></div>
+    <div id="reallist"></div></div>
+  <div class="card"><div class="h">Max B — recent 20 positions (model backtest)</div>
+    <div class="note" style="margin:0 0 8px">Each = a position Max B held until its direction changed. % = the <b>model's estimated</b> equity return including its 50bp slippage assumption — see "Your account" above for real money. The top row is the <b>current open position</b>.</div>
     <div id="tradelist"></div></div>
 </div>
 <div class="note" style="text-align:center;opacity:.55;margin-top:2px" id="footgen"></div>
@@ -212,7 +215,7 @@ $('rmap').innerHTML=Object.entries(D.regime_bias).map(([k,b])=>`<div class="row"
 const tret=t=>(t.apex_ret!=null?t.apex_ret:t.ret);
 $('tradelist').innerHTML=D.recent_trades.map((t,k)=>{const c=t.direction==='LONG'?'var(--grn)':'var(--red)';const r=tret(t);const rc=r>=0?'pos':'neg';
  if(t.open){const RO=(R&&R.open)?R.open:null;
- const head=RO?`<span class="${RO.unrealized_usd>=0?'pos':'neg'}" id="open_ret">${RO.unrealized_usd>=0?'+':''}$${RO.unrealized_usd.toFixed(2)} · ${RO.unrealized_pct_equity>=0?'+':''}${RO.unrealized_pct_equity.toFixed(1)}%</span>`
+ const head=RO?`<span class="${RO.unrealized_usd>=0?'pos':'neg'}" id="open_ret">${(RO.unrealized_usd<0?'−$':'+$')+Math.abs(RO.unrealized_usd).toFixed(2)} · ${RO.unrealized_pct_equity>=0?'+':''}${RO.unrealized_pct_equity.toFixed(1)}%</span>`
               :`<span class="${rc}" id="open_ret">${(r*100).toFixed(1)}%</span>`;
  const realline=RO?`<div class="t2"><span>real fills: avg $${f0(RO.avg_entry)} × ${RO.qty} · fees $${RO.fees_usdt.toFixed(2)} incl.</span><span>model est.: <span id="open_ret_model" class="${rc}">${(r*100).toFixed(1)}%</span></span></div>`:'';
  return `<div class="trade" onclick="openTrade(${k})" style="border-color:var(--blu)"><div class="t1"><span style="color:${c}">● CURRENT · ${t.direction} · ${t.strategy}</span>${head}</div>
@@ -221,12 +224,21 @@ $('tradelist').innerHTML=D.recent_trades.map((t,k)=>{const c=t.direction==='LONG
  return `<div class="trade" onclick="openTrade(${k})"><div class="t1"><span style="color:${c}">${t.direction} · ${t.strategy}</span><span class="${rc}">${(r*100).toFixed(1)}%</span></div>
  <div class="t2"><span>${t.entry_dt} → ${t.exit_dt}</span><span>${t.market}</span></div>
  <div class="t2"><span>in $${f0(t.entry)}${t.entry_x?(' @'+t.entry_x+'×'):''} · out $${f0(t.exit)}</span><span>${t.reason} ›</span></div></div>`}).join('');
+// real closed positions from actual fills (fees deducted) — shown only when account data is present
+const fm=v=>(v<0?'−$':'+$')+Math.abs(v).toFixed(2);
+if(R&&R.recent_closed&&R.recent_closed.length){$('realcard').style.display='';
+ const tot=R.recent_closed.reduce((a,t)=>a+t.realized_usd,0),fto=R.recent_closed.reduce((a,t)=>a+t.fees_usdt,0);
+ $('realtot').innerHTML=`Total: <span class="${tot>=0?'pos':'neg'}">${fm(tot)}</span> over ${R.recent_closed.length} closed positions · $${fto.toFixed(2)} total fees (already deducted).`;
+ $('reallist').innerHTML=R.recent_closed.map(t=>{const c=t.side==='LONG'?'var(--grn)':'var(--red)';
+  return `<div class="trade"><div class="t1"><span style="color:${c}">${t.side}</span><span class="${t.realized_usd>=0?'pos':'neg'}">${fm(t.realized_usd)}</span></div>
+  <div class="t2"><span>${t.opened} → ${t.closed}</span><span>${t.max_qty} BTC</span></div>
+  <div class="t2"><span>realized, after $${t.fees_usdt.toFixed(2)} fees</span><span>real fills</span></div></div>`}).join('');}
 // keep the open position's "now" price + running return fresh with the live price
 function updOpen(p){const t=D.recent_trades.find(x=>x.open);if(!t)return;const nb=$('open_now');if(nb)nb.textContent=f0(p);
  const RO=(R&&R.open)?R.open:null;
  if(RO){const s=RO.side==='LONG'?1:-1;const u=(p-RO.avg_entry)*s*RO.qty-RO.fees_usdt;
   const pc=R.equity_usdt?u/R.equity_usdt*100:0;const el=$('open_ret');
-  if(el){el.textContent=(u>=0?'+':'')+'$'+u.toFixed(2)+' · '+(pc>=0?'+':'')+pc.toFixed(1)+'%';el.className=u>=0?'pos':'neg';}}
+  if(el){el.textContent=(u<0?'−$':'+$')+Math.abs(u).toFixed(2)+' · '+(pc>=0?'+':'')+pc.toFixed(1)+'%';el.className=u>=0?'pos':'neg';}}
  const rb=RO?$('open_ret_model'):$('open_ret');if(!rb)return;const dir=t.direction==='LONG'?1:-1;const MM=D.model_growth||D.model_apex;const expm=(MM&&MM.exposure_mult)||1;
  const base=(t.apex_ret!=null?t.apex_ret:0),since=(p/D.price-1)*dir*expm,r=(1+base)*(1+since)-1;
  rb.textContent=(r*100).toFixed(1)+'%';rb.className=r>=0?'pos':'neg';}
