@@ -236,6 +236,11 @@ if(R&&(R.open||R.trading_frozen!=null)){$('acctcard').style.display='';
  const w=[];
  if(R.trading_frozen)w.push('Auto-trading is <b>paused</b>, so your account does <b>not</b> follow the model below. It will not open, close, or resize anything until the kill switch is removed.');
  if(RM&&RM.account_matches===false)w.push(`Your account <b>differs from the model</b>: model wants <b>${RM.direction} ${RM.exposure_mult}×</b> (${RM.target_btc>=0?'+':''}${RM.target_btc} BTC), you hold <b>${o?o.side+' '+o.qty:'nothing'}</b> — a gap of about <b>$${f0(RM.gap_usd)}</b>.`);
+ if(R.reconstruction_ok===false)w.push('Position <b>size</b> is exact, but its average entry and P&L could not be reconstructed (the entry is older than the fill window) — treat the P&L above as unavailable, not zero.');
+ // staleness: the snapshot is published hourly by the VM; if it stops, say so instead of ticking a fake-live P&L
+ const ag=(()=>{if(!R.generated)return null;const m=/(\d{4})-(\d\d)-(\d\d) (\d\d):(\d\d)/.exec(R.generated);if(!m)return null;
+   return (Date.now()-Date.UTC(+m[1],+m[2]-1,+m[3],+m[4],+m[5]))/60000;})();
+ if(ag!=null&&ag>180)w.push(`This account snapshot is <b>${ag>2880?Math.round(ag/1440)+' days':Math.round(ag/60)+' hours'} old</b> — the publisher may have stopped. Numbers above may no longer reflect your account.`);
  if(o&&RM&&o.side!==RM.direction)w.push(`Direction conflict: the model card and Trades tab describe a <b>${RM.direction}</b>; your money is in a <b>${o.side}</b>. Any % or cut-loss shown for the model does <b>not</b> apply to your position.`);
  $('ac_warn').innerHTML=w.length?`<div class="risknote">⚠️ ${w.join('<br><br>')}</div>`:'';
  $('ac_gen').textContent='account read '+(R.generated||'—')+(RM&&RM.as_of?(' · model signal as of '+RM.as_of):'');}

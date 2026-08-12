@@ -56,7 +56,45 @@ def tg_selfcheck():
         print("[telegram] SELFCHECK FAILED:", repr(e)); return False
 
 
+def reality_header():
+    """Every message below describes the MODEL. Prepend what is actually true of the ACCOUNT.
+
+    Without this, a frozen system still sends imperative 'ACTION: CLOSE the position / BUY … place a
+    resting stop at the cut-loss' messages. On the 2026-08-11 flip those instructions ran directly
+    against a live SHORT the bot could not touch — following them would have doubled the position.
+    """
+    root = os.path.join(HERE, "..")
+    out = []
+    frozen = os.path.exists(os.path.join(root, "STOP"))
+    acct = None
+    try:
+        acct = json.load(open(os.path.join(root, "out", "real_pnl.json"), encoding="utf-8"))
+    except Exception:
+        pass
+    if frozen:
+        out.append("⏸ <b>AUTO-TRADER FROZEN</b> — nothing below is executed automatically. "
+                   "Informational only until the kill switch is removed.")
+    if acct:
+        o = acct.get("open")
+        if o:
+            u = o.get("unrealized_usd")
+            out.append(f"💼 <b>Your account right now:</b> {o['side']} {o['qty']} BTC @ ${o['avg_entry']:,.0f}"
+                       + (f" · {'+' if (u or 0) >= 0 else '−'}${abs(u):,.2f} unrealized" if u is not None else ""))
+        else:
+            out.append("💼 <b>Your account right now:</b> FLAT (no open position)")
+        m = acct.get("model") or {}
+        if m.get("account_matches") is False:
+            gap = m.get("gap_usd")
+            out.append(f"⚠️ Your account does <b>not</b> match the model below (model wants "
+                       f"{m.get('direction')} {m.get('exposure_mult')}×"
+                       + (f", gap ≈ ${gap:,.0f}" if gap is not None else "") + ").")
+    elif frozen:
+        out.append("💼 Account state unknown (no recent snapshot).")
+    return ("\n".join(out) + "\n\n") if out else ""
+
+
 def tg(text):
+    text = reality_header() + text
     tok = os.environ.get("TELEGRAM_BOT_TOKEN"); chat = os.environ.get("TELEGRAM_CHAT_ID")
     if not tok or not chat:
         print("[telegram] NO CREDS — message would be:\n" + _strip(text)); return False

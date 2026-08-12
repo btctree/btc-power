@@ -93,6 +93,17 @@ def main():
     for t in fills:
         q = (1 if t["isBuyer"] else -1) * float(t["qty"])
         p = float(t["price"]); f = fee_usdt(t, bnb_px)
+        # A flip can happen in ONE order (binance_trader places a single signed delta), so the net
+        # can cross zero without ever resting near flat. Close the old trip and open the new one at
+        # the crossing, otherwise the walk keeps the stale side and a meaningless average entry.
+        crossed = cur is not None and net != 0 and (net > 0) != (net + q > 0) and abs(net + q) > DUST
+        if crossed:
+            cur.update(closed=t["time"], realized=cur["cash"] + net * p - cur["fees"])
+            trips.append(cur)
+            cur = None
+            q_new = net + q          # the part of this fill that opens the opposite position
+            net = 0.0
+            q = q_new
         if cur is None and abs(net) <= DUST and abs(net + q) > DUST:
             cur = dict(opened=t["time"], side="LONG" if q > 0 else "SHORT",
                        cash=0.0, fees=0.0, max_qty=0.0, open_qty=0.0, open_cost=0.0)
@@ -111,7 +122,18 @@ def main():
     def iso(ms):
         return time.strftime("%Y-%m-%d %H:%M", time.gmtime(ms / 1000)) + " UTC"
 
+    # "open: null" must mean FLAT, never "reconstruction failed". If the account holds a real
+    # position but the walk never opened a trip for it (entry older than the DAYS window, or a gap
+    # in the fill history), say so explicitly with what IS known rather than implying flat.
     open_pos = None
+    recon_ok = True
+    if cur is None and abs(btc_net) > DUST:
+        recon_ok = False
+        open_pos = dict(side="LONG" if btc_net > 0 else "SHORT", qty=round(abs(btc_net), 6),
+                        avg_entry=None, opened=None, fees_usdt=0.0,
+                        unrealized_usd=None, unrealized_pct_equity=None,
+                        note=f"entry predates the {DAYS}-day fill window — size is exact, "
+                             f"average entry and P&L unavailable")
     if cur is not None and abs(net) > DUST:
         avg = cur["open_cost"] / cur["open_qty"] if cur["open_qty"] else 0.0
         unreal = (px - avg) * net - cur["fees"]     # signed net: works for long and short
@@ -141,7 +163,7 @@ def main():
         margin_level=float(acct.get("marginLevel", 999)),
         bnb_fee_note="BNB-paid fees valued at current BNB price (approx.)" if bnb_px else "",
         account_btc=round(btc_net, 6), trading_frozen=frozen, model=model,
-        open=open_pos,
+        reconstruction_ok=recon_ok, open=open_pos,
         recent_closed=[dict(side=c["side"], opened=iso(c["opened"]), closed=iso(c["closed"]),
                             max_qty=round(c["max_qty"], 6), fees_usdt=round(c["fees"], 2),
                             realized_usd=round(c["realized"], 2)) for c in trips[-10:]][::-1],
