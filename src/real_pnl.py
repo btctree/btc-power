@@ -141,4 +141,14 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # NEVER break the pipeline: this module is cosmetic (dashboard P&L). Any failure — geo-blocked
+    # host (HTTP 451 on api.binance.com from US CI runners), bad key, network — must leave the build
+    # running and the dashboard falling back to the model view.
+    try:
+        main()
+    except Exception as e:
+        msg = str(e)
+        if "451" in msg:
+            msg += "  (api.binance.com is geo-blocked from this host — account data needs a machine " \
+                   "in a permitted region, e.g. the VM. Public market data uses data-api.binance.vision.)"
+        print(f"[real_pnl] SKIPPED — {msg}")
