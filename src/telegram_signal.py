@@ -145,7 +145,7 @@ def daily_report(d, url):
     la = B.get("latest_action") or {}
     lines = []
     if la.get("type") and la["type"] not in ("HOLD",):
-        lines += [f"🚨 <b>ACTION REQUIRED — {la.get('date', d['as_of'])}</b>",
+        lines += [f"🚨 <b>MODEL SIGNAL — {la.get('date', d['as_of'])}</b>",
                   f"👉 <b>{B.get('instruction', '')}</b>"]
         if la.get("reason"):
             lines.append(f"Reason: {la['reason']}")
@@ -159,9 +159,9 @@ def daily_report(d, url):
         liqs = f" · liquidation ${B['liquidation']:,.0f}" if B.get("liquidation") else ""
         lines.append(f"• Effective {B.get('exposure_mult', 0):.1f}× · margin {B['margin_pct']:.0f}% · 🛑 cut-loss ${B['cutloss']:,.0f}{liqs}")
     if B.get("instruction"):
-        lines.append(f"📌 <b>What to do:</b> {B['instruction']}")
+        lines.append(f"📌 <b>Model plan:</b> {B['instruction']}")
     if B.get("entry_price"):
-        lines.append(f"• Position: entered {B.get('entry_date','—')} @ ${B['entry_price']:,.0f} at {B.get('entry_exposure','?')}× · now {B.get('exposure_mult','?')}×")
+        lines.append(f"• Model position: entered {B.get('entry_date','—')} @ ${B['entry_price']:,.0f} at {B.get('entry_exposure','?')}× · now {B.get('exposure_mult','?')}×")
         pa = B.get("position_actions") or []
         if pa:
             lines.append("• Build-up (newest first):")
@@ -174,7 +174,7 @@ def daily_report(d, url):
                     lines.append(f"   – {a['date']} {a['type']} {'+' if a['delta_x']>0 else ''}{a['delta_x']}× ({dps}) → {a['to_x']}× @ ${a['price']:,.0f} · margin {a['margin_pct']:.0f}%{rs}")
             if len(pa) > 8: lines.append(f"   – … {len(pa)-8} earlier action(s)")
         if B.get("avg_entry"):
-            lines.append(f"• Avg entry (weighted) ≈ ${B['avg_entry']:,.0f}")
+            lines.append(f"• Model avg entry (weighted) ≈ ${B['avg_entry']:,.0f}")
     lines += ["", (f"<b>Core (spot 1×, same way)</b>: {C['action']} · {C['size_pct']:.0f}%"
                    + (f" · cut ${C['cutloss']:,.0f}" if C.get("cutloss") else "")),
               "", f"<b>Forecast</b> {F['bias']} — {F['headline']}",
@@ -185,7 +185,7 @@ def daily_report(d, url):
     if url:
         lines += ["", f"📱 {url}"]
     lines += ["", "⏱ <i>Signal decided at the daily close (UTC); entry/exit alerts within ~1h of close at that "
-              "close price; cut-loss watched hourly intraday.</i>",
+              "close price; cut-loss watched hourly intraday (alert only — no order is placed at it).</i>",
               "", "<i>Max B uses up to ~5× effective leverage (can be liquidated on a large adverse gap); "
               "deep drawdowns and losing years happen (2024/2025 in backtest). Spot 1× cannot be "
               "liquidated. Hypothetical; not financial advice.</i>"]
@@ -196,20 +196,24 @@ def entry_msg(B, price):
     de = "🟢 LONG" if B["direction"] == "LONG" else "🔴 SHORT"
     liqs = f" · liquidation ${B['liquidation']:,.0f}" if B.get("liquidation") else ""
     verb = "BUY" if B["direction"] == "LONG" else "SHORT"
-    return (f"<b>⚡ BTC POWER — ENTER {de} (Max B)</b>\n"
-            f"ACTION: <b>{verb} BTC worth {B.get('exposure_mult', 0):.1f}× your equity</b> (margin {B['margin_pct']:.0f}% at 5× setting)\n"
-            f"Entry price <b>${price:,.0f}</b> (daily close = signal price) · {B['regime']} · engines {', '.join(B['engines']) or '—'}\n"
+    cut_dir = "−15%" if B["direction"] == "LONG" else "+15%"
+    return (f"<b>⚡ BTC POWER — MODEL ENTERS {de} (Max B)</b>\n"
+            f"MODEL ACTION: <b>{verb} BTC worth {B.get('exposure_mult', 0):.1f}× equity</b> (margin {B['margin_pct']:.0f}% at 5× setting)\n"
+            f"Model entry <b>${price:,.0f}</b> (daily close = signal price) · {B['regime']} · engines {', '.join(B['engines']) or '—'}\n"
             f"Confidence {B['confidence']}\n"
-            f"🛑 <b>Cut-loss ${B['cutloss']:,.0f}</b> (−15% from entry, fixed){liqs}\n"
-            f"<i>Place a resting stop at the cut-loss to cap the downside.</i>")
+            f"🛑 <b>Model cut-loss ${B['cutloss']:,.0f}</b> ({cut_dir} from entry, fixed){liqs}\n"
+            f"<i>The system only ALERTS at the cut-loss — it places no stop order. To cap downside, "
+            f"place a resting stop yourself (only if your account is actually in this trade).</i>")
 
 
 def exit_msg(s, price, reason):
     d = s["direction"]; pnl = (price / s["entry"] - 1) * (1 if d == "LONG" else -1) if s.get("entry") else 0
-    return (f"<b>⚡ BTC POWER — EXIT {d} (Max B)</b> {'🟢' if pnl >= 0 else '🔴'}\n"
-            f"ACTION: <b>CLOSE the entire position</b>\n"
-            f"Out ${price:,.0f}" + (f" (in ${s['entry']:,.0f}) · <b>{pnl*100:+.1f}%</b>" if s.get('entry') else "")
-            + f"\nReason: {reason}. Now FLAT — wait for the next Max B signal.")
+    return (f"<b>⚡ BTC POWER — MODEL EXITS {d} (Max B)</b> {'🟢' if pnl >= 0 else '🔴'}\n"
+            f"MODEL ACTION: <b>CLOSE the entire position</b>\n"
+            f"Model out ${price:,.0f}" + (f" (in ${s['entry']:,.0f}) · <b>{pnl*100:+.1f}% model P&L, "
+            f"signal close to signal close</b> — not your account's fills" if s.get('entry') else "")
+            + f"\nReason: {reason}. The MODEL is now FLAT — your account only follows if the "
+            f"auto-trader is armed (see header above).")
 
 
 def resize_msg(prev_x, B):
@@ -218,10 +222,10 @@ def resize_msg(prev_x, B):
     do = (f"{'BUY' if d == 'LONG' else 'SHORT'} ≈{abs(delta):.1f}× more notional" if delta > 0
           else f"CLOSE ≈{abs(delta):.1f}× of the position")
     ep = B.get("entry_price") or 0
-    return (f"<b>⚡ BTC POWER — {head} {d} (Max B)</b>\n"
-            f"ACTION: <b>{do}</b>\n"
-            f"Position size {prev_x:.1f}× → <b>{cur:.1f}×</b> of equity · margin {prev_x/5*100:.0f}% → {B['margin_pct']:.0f}%\n"
-            f"Position entry (unchanged): {B.get('entry_date', '—')} @ ${ep:,.0f} · 🛑 cut-loss ${B['cutloss']:,.0f}\n"
+    return (f"<b>⚡ BTC POWER — MODEL {head} {d} (Max B)</b>\n"
+            f"MODEL ACTION: <b>{do}</b>\n"
+            f"Model size {prev_x:.1f}× → <b>{cur:.1f}×</b> of equity · margin {prev_x/5*100:.0f}% → {B['margin_pct']:.0f}%\n"
+            f"Model entry (unchanged): {B.get('entry_date', '—')} @ ${ep:,.0f} · 🛑 model cut-loss ${B['cutloss']:,.0f}\n"
             + (f"Reason: {(B.get('latest_action') or {}).get('reason')}\n" if (B.get('latest_action') or {}).get('reason') else "")
             + f"<i>Re-size = the model adjusting to volatility/conviction; entry & cut-loss stay fixed.</i>")
 
@@ -257,14 +261,20 @@ def main():
            f"daily signal is being applied on this run. If this recurs, an always-on host avoids the gap.")
     price = live_price(d["price"]); cur = B["direction"]
     # 1) intraday cut-loss breach on an open position
+    trade_key = f"{cur} {B.get('entry_date')}"
     if s["direction"] in ("LONG", "SHORT") and s.get("cutloss"):
         hit = (price <= s["cutloss"]) if s["direction"] == "LONG" else (price >= s["cutloss"])
         if hit:
             tg(exit_msg(s, s["cutloss"], "cut-loss hit"))
-            s = {"direction": "FLAT", "entry": None, "cutloss": None, "last_report_date": s["last_report_date"]}
+            # LATCH the alert to this model trade: without it, the very next block sees FLAT vs the
+            # model's unchanged direction and fires a fresh ENTER — an hourly EXIT/ENTER spam loop
+            # (with the entry price silently rewritten) for as long as price sits past the cut-loss.
+            s = {"direction": "FLAT", "entry": None, "cutloss": None,
+                 "last_report_date": s["last_report_date"], "cutloss_latched": trade_key}
     # 2) Max B signal change (entry / exit / flip) — priced at the DAILY CLOSE the signal was
     #    decided on (d["price"]), not the intraday live price (that's only for the cut-loss watch)
-    if cur != s["direction"]:
+    if cur != s["direction"] and s.get("cutloss_latched") != trade_key:
+        s.pop("cutloss_latched", None)          # a genuinely new model trade clears the latch
         if s["direction"] in ("LONG", "SHORT"):
             tg(exit_msg(s, d["price"], "Max B signal flipped to " + cur))
         if cur in ("LONG", "SHORT"):

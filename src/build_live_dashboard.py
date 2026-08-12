@@ -95,18 +95,18 @@ __EXECBANNER__
     <div class="row"><span class="k">Market type</span><span class="v" id="b8_regime"></span></div>
     <div class="row"><span class="k">Engines</span><span class="v" id="b8_eng"></span></div>
     <div class="row"><span class="k">Confidence</span><span class="v" id="b8_conf"></span></div>
-    <div class="row"><span class="k">Position entry</span><span class="v" id="b8_entry"></span></div>
-    <div class="row"><span class="k">Size: entry → now</span><span class="v" id="b8_size"></span></div>
-    <div class="row"><span class="k">📌 What to do</span><span class="v" id="b8_do" style="font-size:12px;max-width:60%"></span></div>
-    <div class="row"><span class="k">Margin used (setting 5×)</span><span class="v" id="b8_margin"></span></div>
-    <div class="row"><span class="k">Cut-loss (entry −15%)</span><span class="v amb" id="b8_cut"></span></div>
-    <div class="row"><span class="k">Liquidation (from entry)</span><span class="v" id="b8_liq"></span></div>
-    <div class="h" style="margin-top:10px">Position build-up — every action (newest first)</div>
+    <div class="row"><span class="k">Model entry</span><span class="v" id="b8_entry"></span></div>
+    <div class="row"><span class="k">Model size: entry → now</span><span class="v" id="b8_size"></span></div>
+    <div class="row"><span class="k">📌 Model plan</span><span class="v" id="b8_do" style="font-size:12px;max-width:60%"></span></div>
+    <div class="row"><span class="k">Model margin (5× setting)</span><span class="v" id="b8_margin"></span></div>
+    <div class="row"><span class="k">Model cut-loss (±15% from entry · alert only)</span><span class="v amb" id="b8_cut"></span></div>
+    <div class="row"><span class="k">Model liquidation (from entry)</span><span class="v" id="b8_liq"></span></div>
+    <div class="h" style="margin-top:10px">Model position build-up — every action (newest first)</div>
     <div id="b8_actions" style="font-size:12px"></div>
-    <div class="row" style="margin-top:2px"><span class="k">Avg entry (weighted)</span><span class="v" id="b8_avg"></span></div>
+    <div class="row" style="margin-top:2px"><span class="k">Model avg entry (weighted)</span><span class="v" id="b8_avg"></span></div>
     <div class="risknote" id="b8_note"></div>
   </div>
-  <div class="card"><div class="h">Core · spot 1× (safer, same direction)</div>
+  <div class="card"><div class="h">Core (model) · spot 1× (safer, same direction)</div>
     <div class="big" id="c_action" style="font-size:18px"></div>
     <div class="row"><span class="k">Size</span><span class="v" id="c_size"></span></div>
     <div class="row"><span class="k">Margin</span><span class="v" id="c_margin" style="font-size:12px"></span></div>
@@ -132,7 +132,7 @@ __EXECBANNER__
 </div>
 
 <div class="pane" id="p-perf">
-  <div class="card"><div class="h">Equity from $500 — drag to pan · pinch/wheel zoom · tap a point</div>
+  <div class="card"><div class="h">BACKTEST simulation — equity from $500 (not your money) · drag to pan · pinch/wheel zoom</div>
     <div class="scbtns" id="scbtns"></div>
     <canvas id="chart"></canvas>
     <div class="legend" style="margin-top:6px;flex-wrap:wrap"><span><b style="color:var(--grn)">▲</b> enter long</span><span><b style="color:var(--red)">▼</b> enter short</span><span><b style="color:var(--grn)">△</b><b style="color:var(--red)">▽</b> exit</span><span class="mut">tap a Trade to pin</span></div>
@@ -140,14 +140,14 @@ __EXECBANNER__
     <div class="ctrls"><input id="cf_funds" type="number" min="0" placeholder="Start $ (e.g. 10000)"><input id="cf_start" type="date"><input id="cf_end" type="date"><button onclick="applyCustom()" style="flex:0 1 70px;background:#13324a;color:var(--blu);border-color:var(--blu)">Apply</button></div>
     <div class="note" style="margin-top:4px">Custom view: set a starting fund and/or date window — the curve re-bases to "what if I started with that amount on that date". Leave blank = actual $500 backtest.</div>
     <div class="ctrls"><button onclick="zoomBtn(0.7)">＋</button><button onclick="zoomBtn(1.4)">－</button><button onclick="toggleScale()" id="scaleBtn">Log</button><button onclick="toggleMarks()" id="markBtn">Marks ●</button><button onclick="resetView()">Reset</button></div>
-    <div class="row" style="margin-top:8px"><span class="k">Final $500→</span><span class="v" id="m_final"></span></div>
-    <div class="row"><span class="k">CAGR / maxDD</span><span class="v" id="m_cd"></span></div>
+    <div class="row" style="margin-top:8px"><span class="k">Backtest $500→</span><span class="v" id="m_final"></span></div>
+    <div class="row"><span class="k">Backtest CAGR / maxDD</span><span class="v" id="m_cd"></span></div>
   </div>
 </div>
 
 <div class="pane" id="p-trades">
   <div class="card" id="realcard" style="display:none"><div class="h">Your account — closed positions (real fills)</div>
-    <div class="note" style="margin:0 0 8px">Actual executed round trips on the Binance account. <b>P&amp;L is real and net of all trading fees</b> — no estimates. <span id="realtot"></span></div>
+    <div class="note" style="margin:0 0 8px">Actual executed round trips on the Binance account, <b>net of all trading fees</b> (BNB-paid fees valued at the current BNB price). <span id="realtot"></span></div>
     <div id="reallist"></div></div>
   <div class="card"><div class="h">Max B — recent 20 positions (model backtest)</div>
     <div class="note" style="margin:0 0 8px">Each = a position Max B held until its direction changed. % = the <b>model's estimated</b> equity return including its 50bp slippage assumption — see "Your account" above for real money. The top row is the <b>current open position</b>.</div>
@@ -192,7 +192,7 @@ window.addEventListener('focus',checkFresh);setInterval(checkFresh,1800000);
 // header chip = 8B direction
 const dirc=d=>d==='LONG'?'var(--grn)':(d==='SHORT'?'var(--red)':'var(--mut)');
 const B=D.model_growth||D.model_apex||D.model_8b,C=D.live,F=D.forecast;
-const chip=$('chip');chip.textContent='Max B: '+B.action;chip.style.background=dirc(B.direction)+'22';chip.style.color=dirc(B.direction);
+const chip=$('chip');chip.textContent='Model: '+B.action;chip.style.background=dirc(B.direction)+'22';chip.style.color=dirc(B.direction);
 // 8B card
 $('b8_action').textContent=B.action;$('b8_action').style.color=dirc(B.direction);
 $('b8_regime').textContent=B.regime;$('b8_eng').textContent=(B.engines||[]).join(', ')||'—';
@@ -252,7 +252,7 @@ $('tradelist').innerHTML=D.recent_trades.map((t,k)=>{const c=t.direction==='LONG
  // trade. Otherwise the row would show the model's direction next to a P&L earned on the opposite
  // position (e.g. model LONG + account SHORT while frozen) — a lie by juxtaposition.
  const RO=(R&&R.open&&R.model&&R.open.side===R.model.direction&&R.model.account_matches!==false)?R.open:null;
- const mismatch=(R&&R.open&&R.model&&(R.open.side!==R.model.direction||R.model.account_matches===false));
+ const mismatch=(R&&R.model&&(R.model.account_matches===false||(R.open&&R.open.side!==R.model.direction)));
  const head=RO?`<span class="${RO.unrealized_usd>=0?'pos':'neg'}" id="open_ret">${(RO.unrealized_usd<0?'−$':'+$')+Math.abs(RO.unrealized_usd).toFixed(2)} · ${RO.unrealized_pct_equity>=0?'+':''}${RO.unrealized_pct_equity.toFixed(1)}%</span>`
               :`<span class="${rc}" id="open_ret">${(r*100).toFixed(1)}%</span>`;
  const realline=RO?`<div class="t2"><span>real fills: avg $${f0(RO.avg_entry)} × ${RO.qty} · fees $${RO.fees_usdt.toFixed(2)} incl.</span><span>model est.: <span id="open_ret_model" class="${rc}">${(r*100).toFixed(1)}%</span></span></div>`
@@ -282,7 +282,7 @@ function updOpen(p){const t=D.recent_trades.find(x=>x.open);if(!t)return;const n
  const rb=RO?$('open_ret_model'):$('open_ret');if(!rb)return;const dir=t.direction==='LONG'?1:-1;const MM=D.model_growth||D.model_apex;const expm=(MM&&MM.exposure_mult)||1;
  const base=(t.apex_ret!=null?t.apex_ret:0),since=(p/D.price-1)*dir*expm,r=(1+base)*(1+since)-1;
  rb.textContent=(r*100).toFixed(1)+'%';rb.className=r>=0?'pos':'neg';}
-updOpen(D.price);
+updOpen(R&&R.price?R.price:D.price);  // first paint marks real P&L at the account snapshot's price, not the model's daily close
 // trade detail popup: 1x (spot) vs 5x (8B) return + jump-to-chart
 function tradeIdx(t){if(t.idx!=null)return t.idx;const i=D.dates.indexOf(t.entry_dt);return i>=0?i:null;}
 function openTrade(k){const t=D.recent_trades[k];const c=t.direction==='LONG'?'var(--grn)':'var(--red)';
@@ -296,7 +296,8 @@ function openTrade(k){const t=D.recent_trades[k];const c=t.direction==='LONG'?'v
    ['Spot 1× move',`<span class="${r1>=0?'pos':'neg'}">${(r1*100).toFixed(1)}%</span>`],
    [t.open?'Max B return (running)':'Max B return (realized)',`<span class="${ra>=0?'pos':'neg'}">${(ra*100).toFixed(1)}%</span>`],
    ['Status',t.reason]
- ].map(([a,b])=>`<div class="row"><span class="k">${a}</span><span class="v">${b}</span></div>`).join('');
+ ].map(([a,b])=>`<div class="row"><span class="k">${a}</span><span class="v">${b}</span></div>`).join('')
+ +(t.open&&R?`<div class="note" style="margin-top:8px">⚠️ These are <b>model</b> figures. Your account: ${R.open?R.open.side+' '+R.open.qty+' BTC @ $'+f0(R.open.avg_entry):'FLAT'}${R.trading_frozen?' · auto-trading frozen':''} — see the 💼 card on the Signal tab.</div>`:'');
  const ix=tradeIdx(t);$('tm_jump').onclick=()=>{closeModal();jumpToTrade(ix);};
  $('tm_jump').style.opacity=ix==null?0.4:1;
  $('tmodal').classList.add('on');}
