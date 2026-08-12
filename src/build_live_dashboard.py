@@ -81,7 +81,16 @@ canvas{width:100%;height:300px;display:block;border-radius:10px;touch-action:non
 __EXECBANNER__
 
 <div class="pane on" id="p-signal">
-  <div class="card feat"><div class="h">⚡ Max B Model · 5× vol-targeted + cycle shields</div>
+  <div class="card" id="acctcard" style="display:none;border-color:#3a4458"><div class="h">💼 Your live Binance account — the real position</div>
+    <div class="big" id="ac_pos"></div>
+    <div class="row"><span class="k">Unrealized P&amp;L (after fees)</span><span class="v" id="ac_pnl"></span></div>
+    <div class="row"><span class="k">Avg entry (real fills)</span><span class="v" id="ac_entry"></span></div>
+    <div class="row"><span class="k">Equity · margin level</span><span class="v" id="ac_eq"></span></div>
+    <div class="row"><span class="k">Auto-trading</span><span class="v" id="ac_arm"></span></div>
+    <div id="ac_warn"></div>
+    <div class="note" id="ac_gen" style="margin-top:6px"></div>
+  </div>
+  <div class="card feat"><div class="h">⚡ Max B Model · 5× vol-targeted + cycle shields <span style="color:var(--mut);text-transform:none;letter-spacing:0">— the model's plan, not your account</span></div>
     <div class="big" id="b8_action"></div>
     <div class="row"><span class="k">Market type</span><span class="v" id="b8_regime"></span></div>
     <div class="row"><span class="k">Engines</span><span class="v" id="b8_eng"></span></div>
@@ -211,13 +220,38 @@ $('f_bias').textContent=(F.bias==='POTENTIAL UP'?'▲ ':(F.bias==='POTENTIAL DOW
 $('f_head').textContent=F.headline;$('f_regime').textContent=F.regime;$('f_eng').textContent=(F.engines||[]).join(', ')||'—';
 const BCOL={UP:'var(--grn)',DOWN:'var(--red)',ASIDE:'var(--mut)'};const BTXT={UP:'long',DOWN:'short',ASIDE:'stand aside'};
 $('rmap').innerHTML=Object.entries(D.regime_bias).map(([k,b])=>`<div class="row"><span class="k">${k}</span><span class="v" style="color:${BCOL[b]}">● ${BTXT[b]}</span></div>`).join('');
+// ---- LIVE ACCOUNT panel: the truth about what is actually held, and whether it matches the model.
+// Rendered only when real account data is present; silent (card hidden) otherwise.
+const RM=(R&&R.model)?R.model:null;
+const sideMatch=()=>{if(!R||!R.open||!RM)return null;return R.open.side===RM.direction;};
+if(R&&(R.open||R.trading_frozen!=null)){$('acctcard').style.display='';
+ const o=R.open;
+ $('ac_pos').innerHTML=o?`<span style="color:${o.side==='LONG'?'var(--grn)':'var(--red)'}">${o.side} ${o.qty} BTC</span> <span class="mut" style="font-size:14px">≈ $${f0(o.qty*R.price)}</span>`
+                       :'<span class="mut">FLAT — no open position</span>';
+ if(o){const u=o.unrealized_usd;$('ac_pnl').innerHTML=`<span class="${u>=0?'pos':'neg'}">${(u<0?'−$':'+$')+Math.abs(u).toFixed(2)}</span> <span class="mut">(${o.unrealized_pct_equity>=0?'+':''}${o.unrealized_pct_equity}% of equity · $${o.fees_usdt.toFixed(2)} fees)</span>`;
+  $('ac_entry').textContent='$'+f0(o.avg_entry)+' · since '+o.opened;}
+ else{$('ac_pnl').textContent='—';$('ac_entry').textContent='—';}
+ $('ac_eq').textContent='$'+f2(R.equity_usdt)+' · '+(R.margin_level>=999?'no debt':Number(R.margin_level).toFixed(2));
+ $('ac_arm').innerHTML=R.trading_frozen?'<span class="amb">⏸ FROZEN (kill switch on)</span>':'<span class="pos">● live — reconciles hourly</span>';
+ const w=[];
+ if(R.trading_frozen)w.push('Auto-trading is <b>paused</b>, so your account does <b>not</b> follow the model below. It will not open, close, or resize anything until the kill switch is removed.');
+ if(RM&&RM.account_matches===false)w.push(`Your account <b>differs from the model</b>: model wants <b>${RM.direction} ${RM.exposure_mult}×</b> (${RM.target_btc>=0?'+':''}${RM.target_btc} BTC), you hold <b>${o?o.side+' '+o.qty:'nothing'}</b> — a gap of about <b>$${f0(RM.gap_usd)}</b>.`);
+ if(o&&RM&&o.side!==RM.direction)w.push(`Direction conflict: the model card and Trades tab describe a <b>${RM.direction}</b>; your money is in a <b>${o.side}</b>. Any % or cut-loss shown for the model does <b>not</b> apply to your position.`);
+ $('ac_warn').innerHTML=w.length?`<div class="risknote">⚠️ ${w.join('<br><br>')}</div>`:'';
+ $('ac_gen').textContent='account read '+(R.generated||'—')+(RM&&RM.as_of?(' · model signal as of '+RM.as_of):'');}
 // trades (tap a row -> detail popup + jump to chart)
 const tret=t=>(t.apex_ret!=null?t.apex_ret:t.ret);
 $('tradelist').innerHTML=D.recent_trades.map((t,k)=>{const c=t.direction==='LONG'?'var(--grn)':'var(--red)';const r=tret(t);const rc=r>=0?'pos':'neg';
- if(t.open){const RO=(R&&R.open)?R.open:null;
+ if(t.open){
+ // Only attach REAL account P&L to the model's open row when the account is actually in that same
+ // trade. Otherwise the row would show the model's direction next to a P&L earned on the opposite
+ // position (e.g. model LONG + account SHORT while frozen) — a lie by juxtaposition.
+ const RO=(R&&R.open&&R.model&&R.open.side===R.model.direction&&R.model.account_matches!==false)?R.open:null;
+ const mismatch=(R&&R.open&&R.model&&(R.open.side!==R.model.direction||R.model.account_matches===false));
  const head=RO?`<span class="${RO.unrealized_usd>=0?'pos':'neg'}" id="open_ret">${(RO.unrealized_usd<0?'−$':'+$')+Math.abs(RO.unrealized_usd).toFixed(2)} · ${RO.unrealized_pct_equity>=0?'+':''}${RO.unrealized_pct_equity.toFixed(1)}%</span>`
               :`<span class="${rc}" id="open_ret">${(r*100).toFixed(1)}%</span>`;
- const realline=RO?`<div class="t2"><span>real fills: avg $${f0(RO.avg_entry)} × ${RO.qty} · fees $${RO.fees_usdt.toFixed(2)} incl.</span><span>model est.: <span id="open_ret_model" class="${rc}">${(r*100).toFixed(1)}%</span></span></div>`:'';
+ const realline=RO?`<div class="t2"><span>real fills: avg $${f0(RO.avg_entry)} × ${RO.qty} · fees $${RO.fees_usdt.toFixed(2)} incl.</span><span>model est.: <span id="open_ret_model" class="${rc}">${(r*100).toFixed(1)}%</span></span></div>`
+   :(mismatch?`<div class="t2" style="color:var(--amb)"><span>⚠️ model only — your account holds ${R.open?R.open.side+' '+R.open.qty+' BTC':'no position'}${R.trading_frozen?' (trading frozen)':''}</span><span>see 💼 Signal tab</span></div>`:'');
  return `<div class="trade" onclick="openTrade(${k})" style="border-color:var(--blu)"><div class="t1"><span style="color:${c}">● CURRENT · ${t.direction} · ${t.strategy}</span>${head}</div>
  <div class="t2"><span>open since ${t.entry_dt}</span><span>${t.market}</span></div>
  <div class="t2"><span>in $${f0(t.entry)}${t.entry_x?(' @'+t.entry_x+'×'):''} · now $<span id="open_now">${f0(D.price)}</span></span><span>${RO?'live account P&L · open ›':'model est. (50bp slip) · open ›'}</span></div>${realline}</div>`;}
@@ -235,7 +269,8 @@ if(R&&R.recent_closed&&R.recent_closed.length){$('realcard').style.display='';
   <div class="t2"><span>realized, after $${t.fees_usdt.toFixed(2)} fees</span><span>real fills</span></div></div>`}).join('');}
 // keep the open position's "now" price + running return fresh with the live price
 function updOpen(p){const t=D.recent_trades.find(x=>x.open);if(!t)return;const nb=$('open_now');if(nb)nb.textContent=f0(p);
- const RO=(R&&R.open)?R.open:null;
+ // same guard as the row render: never show account P&L on a model row the account isn't in
+ const RO=(R&&R.open&&R.model&&R.open.side===R.model.direction&&R.model.account_matches!==false)?R.open:null;
  if(RO){const s=RO.side==='LONG'?1:-1;const u=(p-RO.avg_entry)*s*RO.qty-RO.fees_usdt;
   const pc=R.equity_usdt?u/R.equity_usdt*100:0;const el=$('open_ret');
   if(el){el.textContent=(u<0?'−$':'+$')+Math.abs(u).toFixed(2)+' · '+(pc>=0?'+':'')+pc.toFixed(1)+'%';el.className=u>=0?'pos':'neg';}}

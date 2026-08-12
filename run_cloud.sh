@@ -16,5 +16,9 @@ mkdir -p logs
   "$PY" src/stop_guard.py
   "$PY" src/binance_trader.py
   "$PY" src/telegram_signal.py --mode watch
+  # Real account P&L for the dashboard + publish it to the repo (CI is geo-blocked from Binance, so
+  # only this VM can produce it). Both are cosmetic: guarded so they can never fail the trading run.
+  "$PY" src/real_pnl.py || true
+  ./src/publish_pnl.sh || true
   echo "[$(date -u '+%Y-%m-%d %H:%M:%S') UTC] === done ==="
 } >> logs/cloud_runner.log 2>&1

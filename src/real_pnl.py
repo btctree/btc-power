@@ -120,10 +120,27 @@ def main():
                         unrealized_usd=round(unreal, 2),
                         unrealized_pct_equity=round(unreal / equity * 100, 2) if equity else None)
 
+    # --- account-vs-model truth (so the dashboard can never imply the model IS the account) ---
+    frozen = os.path.exists(os.path.join(HERE, "..", "STOP"))
+    model = {}
+    try:
+        _d = json.load(open(os.path.join(HERE, "..", "out", "results_live.json"), encoding="utf-8"))
+        _g = _d.get("model_growth") or {}
+        sign = 1 if _g.get("direction") == "LONG" else (-1 if _g.get("direction") == "SHORT" else 0)
+        target_btc = sign * float(_g.get("exposure_mult") or 0) * equity / px
+        model = dict(direction=_g.get("direction"), exposure_mult=_g.get("exposure_mult"),
+                     entry_price=_g.get("entry_price"), entry_date=_g.get("entry_date"),
+                     as_of=_d.get("as_of"), target_btc=round(target_btc, 6),
+                     gap_usd=round(abs(target_btc - btc_net) * px, 2),
+                     account_matches=bool(abs(target_btc - btc_net) * px < 20))
+    except Exception:
+        pass
+
     out = dict(
         generated=iso(int(time.time() * 1000)), price=px, equity_usdt=round(equity, 2),
         margin_level=float(acct.get("marginLevel", 999)),
         bnb_fee_note="BNB-paid fees valued at current BNB price (approx.)" if bnb_px else "",
+        account_btc=round(btc_net, 6), trading_frozen=frozen, model=model,
         open=open_pos,
         recent_closed=[dict(side=c["side"], opened=iso(c["opened"]), closed=iso(c["closed"]),
                             max_qty=round(c["max_qty"], 6), fees_usdt=round(c["fees"], 2),
