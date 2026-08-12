@@ -1,7 +1,17 @@
 {
- "generated": "2026-08-12 19:11 UTC",
- "price": 63424.42,
+ "generated": "2026-08-12 19:25 UTC",
+ "price": 63337.99,
  "equity_usdt": 292.2,
+ "baseline": {
+  "ts": "2026-08-12 19:25 UTC",
+  "equity": 292.2
+ },
+ "equity_history": [
+  {
+   "t": "2026-08-12 19:25 UTC",
+   "eq": 292.2
+  }
+ ],
  "margin_level": 999.0,
  "bnb_fee_note": "BNB-paid fees valued at current BNB price (approx.)",
  "account_btc": 0.0,

@@ -145,10 +145,25 @@ __EXECBANNER__
   </div>
 </div>
 
-<div class="pane" id="p-trades">
-  <div class="card" id="realcard" style="display:none"><div class="h">Your account — closed positions (real fills)</div>
+<div class="pane" id="p-acct">
+  <div class="card feat"><div class="h">💼 Real account performance — actual money, actual fills</div>
+    <div class="big" id="tp_now"></div>
+    <div class="row"><span class="k">Start (inception)</span><span class="v" id="tp_start"></span></div>
+    <div class="row"><span class="k">P&amp;L since start</span><span class="v" id="tp_pnl"></span></div>
+    <div class="row"><span class="k">Realized since start · fees paid</span><span class="v" id="tp_realized"></span></div>
+    <div class="row"><span class="k">Open position</span><span class="v" id="tp_open"></span></div>
+    <div class="row"><span class="k">Auto-trading</span><span class="v" id="tp_arm"></span></div>
+    <canvas id="acctchart" style="height:140px;margin-top:10px"></canvas>
+    <div class="note" id="tp_note" style="margin-top:6px"></div>
+  </div>
+  <div class="card" id="realcard" style="display:none"><div class="h">Closed positions (real fills)</div>
     <div class="note" style="margin:0 0 8px">Actual executed round trips on the Binance account, <b>net of all trading fees</b> (BNB-paid fees valued at the current BNB price). <span id="realtot"></span></div>
     <div id="reallist"></div></div>
+  <div class="card" id="noacct" style="display:none"><div class="h">Real account</div>
+    <div class="note" style="margin:0">No account snapshot available — the VM publishes it hourly; check back shortly.</div></div>
+</div>
+
+<div class="pane" id="p-trades">
   <div class="card"><div class="h">Max B — recent 20 positions (model backtest)</div>
     <div class="note" style="margin:0 0 8px">Each = a position Max B held until its direction changed. % = the <b>model's estimated</b> equity return including its 50bp slippage assumption — see "Your account" above for real money. The top row is the <b>current open position</b>.</div>
     <div id="tradelist"></div></div>
@@ -164,7 +179,8 @@ __EXECBANNER__
   <div class="tab on" data-p="signal"><span class="ic">📡</span>Signal</div>
   <div class="tab" data-p="forecast"><span class="ic">🔮</span>Forecast</div>
   <div class="tab" data-p="perf"><span class="ic">📈</span>Returns</div>
-  <div class="tab" data-p="trades"><span class="ic">🧾</span>Trades</div>
+  <div class="tab" data-p="acct"><span class="ic">🧾</span>Trades</div>
+  <div class="tab" data-p="trades"><span class="ic">📜</span>Backtest</div>
 </nav>
 <script>
 const D=__DATA__;const R=__REAL__;
@@ -263,8 +279,33 @@ $('tradelist').innerHTML=D.recent_trades.map((t,k)=>{const c=t.direction==='LONG
  return `<div class="trade" onclick="openTrade(${k})"><div class="t1"><span style="color:${c}">${t.direction} · ${t.strategy}</span><span class="${rc}">${(r*100).toFixed(1)}%</span></div>
  <div class="t2"><span>${t.entry_dt} → ${t.exit_dt}</span><span>${t.market}</span></div>
  <div class="t2"><span>in $${f0(t.entry)}${t.entry_x?(' @'+t.entry_x+'×'):''} · out $${f0(t.exit)}</span><span>${t.reason} ›</span></div></div>`}).join('');
-// real closed positions from actual fills (fees deducted) — shown only when account data is present
+// ---- TRADES page: the real account's track record since inception (owner flattened + reset here).
 const fm=v=>(v<0?'−$':'+$')+Math.abs(v).toFixed(2);
+if(R&&R.baseline){
+ const bl=R.baseline, now=R.equity_usdt, pnl=now-bl.equity, pct=bl.equity?pnl/bl.equity*100:0;
+ $('tp_now').innerHTML=`$${f2(now)} <span class="${pnl>=0?'pos':'neg'}" style="font-size:16px">${fm(pnl)} (${pct>=0?'+':''}${pct.toFixed(2)}%)</span>`;
+ $('tp_start').textContent='$'+f2(bl.equity)+' · '+bl.ts;
+ $('tp_pnl').innerHTML=`<span class="${pnl>=0?'pos':'neg'}">${fm(pnl)}</span> <span class="mut">(${pct>=0?'+':''}${pct.toFixed(2)}% on starting equity)</span>`;
+ const since=(R.recent_closed||[]).filter(t=>t.closed>=bl.ts);
+ const rz=since.reduce((a,t)=>a+t.realized_usd,0), fz=since.reduce((a,t)=>a+t.fees_usdt,0);
+ $('tp_realized').innerHTML=`<span class="${rz>=0?'pos':'neg'}">${fm(rz)}</span> over ${since.length} closed · $${fz.toFixed(2)} fees`;
+ const o=R.open;
+ $('tp_open').innerHTML=o?`<span style="color:${o.side==='LONG'?'var(--grn)':'var(--red)'}">${o.side} ${o.qty} BTC</span>`+(o.unrealized_usd!=null?` <span class="${o.unrealized_usd>=0?'pos':'neg'}">${fm(o.unrealized_usd)}</span>`:''):'<span class="mut">FLAT</span>';
+ $('tp_arm').innerHTML=R.trading_frozen?'<span class="amb">⏸ FROZEN — not following the model</span>':'<span class="pos">● live — follows the model hourly</span>';
+ $('tp_note').textContent='Equity marked hourly from the live account (positions valued at market). Snapshot '+(R.generated||'—')+'.';
+ const H=R.equity_history||[];
+ if(H.length>1){const cv2=$('acctchart'),dpr=window.devicePixelRatio||1,W2=cv2.clientWidth||300,H2=140;
+  cv2.width=W2*dpr;cv2.height=H2*dpr;const x2=cv2.getContext('2d');x2.setTransform(dpr,0,0,dpr,0,0);
+  const vs=H.map(p=>p.eq);let lo=Math.min(...vs,bl.equity),hi=Math.max(...vs,bl.equity);if(hi-lo<1){hi+=1;lo-=1;}
+  const X=i=>34+(W2-40)*i/(H.length-1),Y=v=>H2-16-(H2-28)*(v-lo)/(hi-lo);
+  x2.strokeStyle='#1c2433';x2.fillStyle='#6b7787';x2.font='9px sans-serif';
+  [lo,(lo+hi)/2,hi].forEach(v=>{const y=Y(v);x2.beginPath();x2.moveTo(34,y);x2.lineTo(W2-6,y);x2.stroke();x2.fillText('$'+Math.round(v),2,y+3);});
+  x2.strokeStyle='#ffb84d';x2.setLineDash([3,3]);const by=Y(bl.equity);x2.beginPath();x2.moveTo(34,by);x2.lineTo(W2-6,by);x2.stroke();x2.setLineDash([]);
+  x2.strokeStyle=vs[vs.length-1]>=bl.equity?'#2bd576':'#ff5d5d';x2.lineWidth=1.8;x2.beginPath();
+  H.forEach((p,i)=>{i?x2.lineTo(X(i),Y(p.eq)):x2.moveTo(X(i),Y(p.eq));});x2.stroke();
+  x2.fillStyle='#6b7787';x2.fillText(H[0].t.slice(0,10),34,H2-3);x2.fillText(H[H.length-1].t.slice(0,10),W2-70,H2-3);}
+}else{const na=$('noacct');if(na)na.style.display='';const tc=document.querySelector('#p-acct .card.feat');if(tc)tc.style.display='none';}
+// real closed positions from actual fills (fees deducted) — shown only when account data is present
 if(R&&R.recent_closed&&R.recent_closed.length){$('realcard').style.display='';
  const tot=R.recent_closed.reduce((a,t)=>a+t.realized_usd,0),fto=R.recent_closed.reduce((a,t)=>a+t.fees_usdt,0);
  $('realtot').innerHTML=`Total: <span class="${tot>=0?'pos':'neg'}">${fm(tot)}</span> over ${R.recent_closed.length} closed positions · $${fto.toFixed(2)} total fees (already deducted).`;

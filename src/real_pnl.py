@@ -158,8 +158,25 @@ def main():
     except Exception:
         pass
 
+    # --- real performance record: inception baseline + equity history (persisted across runs) ---
+    # Seeded 2026-08-12 when the owner flattened the account (~$292.20) and asked for a real
+    # track record "from now". First run writes the baseline; it is never overwritten after that.
+    prev = {}
+    try:
+        prev = json.load(open(OUT, encoding="utf-8"))
+    except Exception:
+        pass
+    now_iso = iso(int(time.time() * 1000))
+    baseline = prev.get("baseline") or dict(ts=now_iso, equity=round(equity, 2))
+    hist = (prev.get("equity_history") or []) + [dict(t=now_iso, eq=round(equity, 2))]
+    dedup = {}
+    for pt in hist:
+        dedup[pt["t"][:13]] = pt              # one point per hour (key: 'YYYY-MM-DD HH')
+    hist = [dedup[k] for k in sorted(dedup)][-2200:]   # ~3 months of hourly points
+
     out = dict(
         generated=iso(int(time.time() * 1000)), price=px, equity_usdt=round(equity, 2),
+        baseline=baseline, equity_history=hist,
         margin_level=float(acct.get("marginLevel", 999)),
         bnb_fee_note="BNB-paid fees valued at current BNB price (approx.)" if bnb_px else "",
         account_btc=round(btc_net, 6), trading_frozen=frozen, model=model,
