@@ -1,7 +1,7 @@
 {
- "generated": "2026-08-20 23:05 UTC",
- "price": 72728.1,
- "equity_usdt": 299.24,
+ "generated": "2026-08-21 00:05 UTC",
+ "price": 73157.99,
+ "equity_usdt": 299.53,
  "baseline": {
   "ts": "2026-08-12 19:25 UTC",
   "equity": 292.2
@@ -794,104 +794,108 @@
   {
    "t": "2026-08-20 23:05 UTC",
    "eq": 299.24
+  },
+  {
+   "t": "2026-08-21 00:05 UTC",
+   "eq": 299.53
   }
  ],
  "margin_level": 999.0,
  "bnb_fee_note": "BNB-paid fees valued at current BNB price (approx.)",
- "account_btc": 0.000837,
+ "account_btc": 0.001916,
  "trading_frozen": false,
  "model": {
   "direction": "LONG",
-  "exposure_mult": 0.18,
+  "exposure_mult": 0.47,
   "entry_price": 63600.0,
   "entry_date": "2026-08-11",
-  "as_of": "2026-08-19",
-  "target_btc": 0.000741,
-  "gap_usd": 7.02,
+  "as_of": "2026-08-20",
+  "target_btc": 0.001924,
+  "gap_usd": 0.6,
   "account_matches": true
  },
  "reconstruction_ok": true,
  "open": {
   "side": "LONG",
-  "qty": 0.000837,
-  "avg_entry": 63479.32,
+  "qty": 0.001916,
+  "avg_entry": 66171.16,
   "opened": "2026-08-12 20:05 UTC",
-  "fees_usdt": 0.3,
-  "unrealized_usd": 7.44,
-  "unrealized_pct_equity": 2.49
+  "fees_usdt": 0.38,
+  "unrealized_usd": 13.01,
+  "unrealized_pct_equity": 4.34
  },
  "recent_closed": [
   {
    "side": "SHORT",
    "opened": "2026-08-06 07:09 UTC",
    "closed": "2026-08-12 19:08 UTC",
-   "max_qty": 0.010203,
+   "max_qty": 0.010204,
    "fees_usdt": 1.31,
-   "realized_usd": 10.87
+   "realized_usd": 10.94
   },
   {
    "side": "SHORT",
    "opened": "2026-08-06 05:31 UTC",
    "closed": "2026-08-06 07:08 UTC",
-   "max_qty": 0.008703,
+   "max_qty": 0.008704,
    "fees_usdt": 1.12,
-   "realized_usd": -1.08
+   "realized_usd": -1.01
   },
   {
    "side": "SHORT",
    "opened": "2026-08-04 00:05 UTC",
    "closed": "2026-08-05 00:05 UTC",
-   "max_qty": 0.009123,
+   "max_qty": 0.009124,
    "fees_usdt": 1.15,
-   "realized_usd": 0.17
+   "realized_usd": 0.24
   },
   {
    "side": "SHORT",
    "opened": "2026-08-01 04:39 UTC",
    "closed": "2026-08-02 07:31 UTC",
-   "max_qty": 0.009363,
-   "fees_usdt": 1.08,
-   "realized_usd": -1.87
+   "max_qty": 0.009364,
+   "fees_usdt": 1.07,
+   "realized_usd": -1.8
   },
   {
    "side": "SHORT",
    "opened": "2026-07-31 19:05 UTC",
    "closed": "2026-07-31 19:35 UTC",
-   "max_qty": 0.001653,
+   "max_qty": 0.001654,
    "fees_usdt": 0.25,
-   "realized_usd": 16.54
+   "realized_usd": 16.68
   },
   {
    "side": "LONG",
    "opened": "2026-07-18 00:05 UTC",
    "closed": "2026-07-31 19:05 UTC",
-   "max_qty": 0.008157,
+   "max_qty": 0.008156,
    "fees_usdt": 1.32,
-   "realized_usd": -5.9
+   "realized_usd": -5.97
   },
   {
    "side": "LONG",
    "opened": "2026-07-17 12:14 UTC",
    "closed": "2026-07-17 13:05 UTC",
-   "max_qty": 0.024097,
+   "max_qty": 0.024096,
    "fees_usdt": 3.04,
-   "realized_usd": -11.26
+   "realized_usd": -11.2
   },
   {
    "side": "LONG",
    "opened": "2026-07-17 03:27 UTC",
    "closed": "2026-07-17 04:05 UTC",
-   "max_qty": 0.024517,
+   "max_qty": 0.024516,
    "fees_usdt": 3.12,
-   "realized_usd": -9.55
+   "realized_usd": -9.48
   },
   {
    "side": "LONG",
    "opened": "2026-07-16 08:30 UTC",
    "closed": "2026-07-16 09:05 UTC",
-   "max_qty": 0.024587,
+   "max_qty": 0.024586,
    "fees_usdt": 3.16,
-   "realized_usd": -2.6
+   "realized_usd": -2.53
   }
  ]
 }
