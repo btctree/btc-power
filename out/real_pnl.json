@@ -1,7 +1,7 @@
 {
- "generated": "2026-09-01 18:05 UTC",
- "price": 77255.84,
- "equity_usdt": 302.8,
+ "generated": "2026-09-01 19:05 UTC",
+ "price": 77254.0,
+ "equity_usdt": 302.79,
  "baseline": {
   "ts": "2026-08-12 19:25 UTC",
   "equity": 292.2
@@ -1926,6 +1926,10 @@
   {
    "t": "2026-09-01 18:05 UTC",
    "eq": 302.8
+  },
+  {
+   "t": "2026-09-01 19:05 UTC",
+   "eq": 302.79
   }
  ],
  "margin_level": 999.0,
@@ -1982,8 +1986,8 @@
    "opened": "2026-08-01 04:39 UTC",
    "closed": "2026-08-02 07:31 UTC",
    "max_qty": 0.009369,
-   "fees_usdt": 1.1,
-   "realized_usd": -1.5
+   "fees_usdt": 1.09,
+   "realized_usd": -1.49
   },
   {
    "side": "SHORT",
@@ -1991,7 +1995,7 @@
    "closed": "2026-07-31 19:35 UTC",
    "max_qty": 0.001659,
    "fees_usdt": 0.25,
-   "realized_usd": 17.31
+   "realized_usd": 17.32
   },
   {
    "side": "LONG",
