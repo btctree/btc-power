@@ -1,7 +1,7 @@
 {
- "generated": "2026-09-01 09:05 UTC",
- "price": 77840.14,
- "equity_usdt": 304.1,
+ "generated": "2026-09-01 10:05 UTC",
+ "price": 77915.02,
+ "equity_usdt": 304.27,
  "baseline": {
   "ts": "2026-08-12 19:25 UTC",
   "equity": 292.2
@@ -1890,6 +1890,10 @@
   {
    "t": "2026-09-01 09:05 UTC",
    "eq": 304.1
+  },
+  {
+   "t": "2026-09-01 10:05 UTC",
+   "eq": 304.27
   }
  ],
  "margin_level": 999.0,
@@ -1902,8 +1906,8 @@
   "entry_price": 63600.0,
   "entry_date": "2026-08-11",
   "as_of": "2026-08-31",
-  "target_btc": 0.002227,
-  "gap_usd": 0.33,
+  "target_btc": 0.002226,
+  "gap_usd": 0.4,
   "account_matches": true
  },
  "reconstruction_ok": true,
@@ -1913,8 +1917,8 @@
   "avg_entry": 73286.65,
   "opened": "2026-08-12 20:05 UTC",
   "fees_usdt": 1.15,
-  "unrealized_usd": 9.01,
-  "unrealized_pct_equity": 2.96
+  "unrealized_usd": 9.17,
+  "unrealized_pct_equity": 3.01
  },
  "recent_closed": [
   {
