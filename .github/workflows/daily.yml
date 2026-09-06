@@ -32,7 +32,7 @@ jobs:
       - name: Refresh data + signal + dashboard
         working-directory: src
         env:
-          # READ-ONLY Binance key (view balances/trades only - cannot trade or withdraw).
+          # READ-ONLY Binance key (view balances/trades only — cannot trade or withdraw).
           # Absent secrets -> real_pnl.py skips and the dashboard shows the model view only.
           BINANCE_RO_KEY: ${{ secrets.BINANCE_RO_KEY }}
           BINANCE_RO_SECRET: ${{ secrets.BINANCE_RO_SECRET }}
@@ -64,7 +64,17 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url || steps.deployment2.outputs.page_url }}
     steps:
+      # GitHub's Pages deploy fails transiently every week or two (connect timeouts, OIDC blips) and
+      # every failure emails the owner. One retry absorbs those; a genuine outage still fails loudly.
       - id: deployment
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+      - name: Wait before retry
+        if: steps.deployment.outcome == 'failure'
+        run: sleep 30
+      - id: deployment2
+        name: Retry Pages deployment
+        if: steps.deployment.outcome == 'failure'
         uses: actions/deploy-pages@v4
