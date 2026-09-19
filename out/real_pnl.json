@@ -1,6 +1,6 @@
 {
- "generated": "2026-09-19 19:05 UTC",
- "price": 81450.0,
+ "generated": "2026-09-19 20:05 UTC",
+ "price": 81390.95,
  "equity_usdt": 306.87,
  "baseline": {
   "ts": "2026-08-12 19:25 UTC",
@@ -3658,6 +3658,10 @@
   {
    "t": "2026-09-19 19:05 UTC",
    "eq": 306.87
+  },
+  {
+   "t": "2026-09-19 20:05 UTC",
+   "eq": 306.87
   }
  ],
  "margin_level": 999.0,
@@ -3670,7 +3674,7 @@
   "entry_price": 63600.0,
   "entry_date": "2026-08-11",
   "as_of": "2026-09-18",
-  "target_btc": 0.00211,
+  "target_btc": 0.002111,
   "gap_usd": 171.85,
   "account_matches": false
  },
