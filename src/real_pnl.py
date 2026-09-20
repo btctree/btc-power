@@ -51,6 +51,29 @@ def _signed(key, sec, path, params):
         return json.loads(r.read())
 
 
+def interest_rows(key, sec, start_ms):
+    """Actual margin borrow interest charged by Binance (GET-only), fetched in <=29-day chunks.
+    Partial results on any error — interest is cosmetic and must never sink the snapshot."""
+    rows, end = [], int(time.time() * 1000)
+    cur = start_ms
+    while cur < end:
+        chunk_end = min(cur + 29 * 86_400_000, end)
+        page = 1
+        while True:
+            try:
+                r = _signed(key, sec, "/sapi/v1/margin/interestHistory",
+                            {"startTime": cur, "endTime": chunk_end, "current": page, "size": 100})
+            except Exception:
+                return rows
+            batch = r.get("rows", [])
+            rows += batch
+            if len(batch) < 100 or page >= 10:
+                break
+            page += 1
+        cur = chunk_end + 1
+    return rows
+
+
 def fee_usdt(t, bnb_px):
     fee, asset = float(t["commission"]), t["commissionAsset"]
     if asset == "USDT":
@@ -119,6 +142,20 @@ def main():
                 cur.update(closed=t["time"], realized=cur["cash"] - net * p - cur["fees"])
                 trips.append(cur); cur = None
 
+    # --- actual borrow interest (owner request via M1 session 2026-09-20): real margin cost,
+    # attributed to each round trip's time window; valued in USDT (BTC/BNB rows at current price —
+    # same labeled approximation as BNB fees). Failure -> fields absent; consumers degrade.
+    irows = interest_rows(key, sec, start)
+    def i_usdt(row):
+        v = float(row.get("interest", 0)); a = row.get("asset")
+        return v if a == "USDT" else v * px if a == "BTC" else v * bnb_px if a == "BNB" else 0.0
+    for c in trips:
+        c["interest"] = sum(i_usdt(r) for r in irows
+                            if c["opened"] <= int(r.get("interestAccuredTime", 0)) <= c["closed"])
+    open_interest = (sum(i_usdt(r) for r in irows
+                         if int(r.get("interestAccuredTime", 0)) >= cur["opened"])
+                     if cur is not None else 0.0)
+
     def iso(ms):
         return time.strftime("%Y-%m-%d %H:%M", time.gmtime(ms / 1000)) + " UTC"
 
@@ -130,7 +167,7 @@ def main():
     if cur is None and abs(btc_net) > DUST:
         recon_ok = False
         open_pos = dict(side="LONG" if btc_net > 0 else "SHORT", qty=round(abs(btc_net), 6),
-                        avg_entry=None, opened=None, fees_usdt=0.0,
+                        avg_entry=None, opened=None, fees_usdt=0.0, interest_usdt=None,
                         unrealized_usd=None, unrealized_pct_equity=None,
                         note=f"entry predates the {DAYS}-day fill window — size is exact, "
                              f"average entry and P&L unavailable")
@@ -139,6 +176,7 @@ def main():
         unreal = (px - avg) * net - cur["fees"]     # signed net: works for long and short
         open_pos = dict(side=cur["side"], qty=round(abs(net), 6), avg_entry=round(avg, 2),
                         opened=iso(cur["opened"]), fees_usdt=round(cur["fees"], 2),
+                        interest_usdt=round(open_interest, 4),
                         unrealized_usd=round(unreal, 2),
                         unrealized_pct_equity=round(unreal / equity * 100, 2) if equity else None)
 
@@ -168,6 +206,17 @@ def main():
         pass
     now_iso = iso(int(time.time() * 1000))
     baseline = prev.get("baseline") or dict(ts=now_iso, equity=round(equity, 2))
+    # running interest total since baseline: watermark-persisted so it stays correct even after
+    # rows age out of the fetch window
+    try:
+        import calendar
+        bl_ms = calendar.timegm(time.strptime(baseline["ts"], "%Y-%m-%d %H:%M UTC")) * 1000
+    except Exception:
+        bl_ms = start
+    watermark = int(prev.get("interest_watermark_ms") or bl_ms)
+    new_int = sum(i_usdt(r) for r in irows if int(r.get("interestAccuredTime", 0)) > watermark)
+    total_interest = round(float(prev.get("total_interest_usdt") or 0) + new_int, 4)
+    watermark = max([watermark] + [int(r.get("interestAccuredTime", 0)) for r in irows])
     hist = (prev.get("equity_history") or []) + [dict(t=now_iso, eq=round(equity, 2))]
     dedup = {}
     for pt in hist:
@@ -180,9 +229,11 @@ def main():
         margin_level=float(acct.get("marginLevel", 999)),
         bnb_fee_note="BNB-paid fees valued at current BNB price (approx.)" if bnb_px else "",
         account_btc=round(btc_net, 6), trading_frozen=frozen, model=model,
+        total_interest_usdt=total_interest, interest_watermark_ms=watermark,
         reconstruction_ok=recon_ok, open=open_pos,
         recent_closed=[dict(side=c["side"], opened=iso(c["opened"]), closed=iso(c["closed"]),
                             max_qty=round(c["max_qty"], 6), fees_usdt=round(c["fees"], 2),
+                            interest_usdt=round(c.get("interest", 0), 4),
                             realized_usd=round(c["realized"], 2)) for c in trips[-10:]][::-1],
     )
     os.makedirs(os.path.dirname(OUT), exist_ok=True)

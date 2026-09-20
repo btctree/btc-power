@@ -288,7 +288,7 @@ if(R&&R.baseline){
  $('tp_pnl').innerHTML=`<span class="${pnl>=0?'pos':'neg'}">${fm(pnl)}</span> <span class="mut">(${pct>=0?'+':''}${pct.toFixed(2)}% on starting equity)</span>`;
  const since=(R.recent_closed||[]).filter(t=>t.closed>=bl.ts);
  const rz=since.reduce((a,t)=>a+t.realized_usd,0), fz=since.reduce((a,t)=>a+t.fees_usdt,0);
- $('tp_realized').innerHTML=`<span class="${rz>=0?'pos':'neg'}">${fm(rz)}</span> over ${since.length} closed · $${fz.toFixed(2)} fees`;
+ $('tp_realized').innerHTML=`<span class="${rz>=0?'pos':'neg'}">${fm(rz)}</span> over ${since.length} closed · $${fz.toFixed(2)} fees${R.total_interest_usdt!=null?` · $${R.total_interest_usdt.toFixed(2)} interest since start`:''}`;
  const o=R.open;
  $('tp_open').innerHTML=o?`<span style="color:${o.side==='LONG'?'var(--grn)':'var(--red)'}">${o.side} ${o.qty} BTC</span>`+(o.unrealized_usd!=null?` <span class="${o.unrealized_usd>=0?'pos':'neg'}">${fm(o.unrealized_usd)}</span>`:''):'<span class="mut">FLAT</span>';
  $('tp_arm').innerHTML=R.trading_frozen?'<span class="amb">⏸ FROZEN — not following the model</span>':'<span class="pos">● live — follows the model hourly</span>';
@@ -312,7 +312,7 @@ if(R&&R.recent_closed&&R.recent_closed.length){$('realcard').style.display='';
  $('reallist').innerHTML=R.recent_closed.map(t=>{const c=t.side==='LONG'?'var(--grn)':'var(--red)';
   return `<div class="trade"><div class="t1"><span style="color:${c}">${t.side}</span><span class="${t.realized_usd>=0?'pos':'neg'}">${fm(t.realized_usd)}</span></div>
   <div class="t2"><span>${t.opened} → ${t.closed}</span><span>${t.max_qty} BTC</span></div>
-  <div class="t2"><span>realized, after $${t.fees_usdt.toFixed(2)} fees</span><span>real fills</span></div></div>`}).join('');}
+  <div class="t2"><span>realized, after $${t.fees_usdt.toFixed(2)} fees${t.interest_usdt!=null?` · interest $${t.interest_usdt<0.005&&t.interest_usdt>0?t.interest_usdt.toFixed(4):t.interest_usdt.toFixed(2)} (not in realized)`:''}</span><span>real fills</span></div></div>`}).join('');}
 // keep the open position's "now" price + running return fresh with the live price
 function updOpen(p){const t=D.recent_trades.find(x=>x.open);if(!t)return;const nb=$('open_now');if(nb)nb.textContent=f0(p);
  // same guard as the row render: never show account P&L on a model row the account isn't in
