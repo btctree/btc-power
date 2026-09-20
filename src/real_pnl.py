@@ -121,6 +121,7 @@ def main():
         # the crossing, otherwise the walk keeps the stale side and a meaningless average entry.
         crossed = cur is not None and net != 0 and (net > 0) != (net + q > 0) and abs(net + q) > DUST
         if crossed:
+            cur["close_qty"] += abs(net); cur["close_cost"] += abs(net) * p  # closing part of the crossing fill
             cur.update(closed=t["time"], realized=cur["cash"] + net * p - cur["fees"])
             trips.append(cur)
             cur = None
@@ -129,7 +130,8 @@ def main():
             q = q_new
         if cur is None and abs(net) <= DUST and abs(net + q) > DUST:
             cur = dict(opened=t["time"], side="LONG" if q > 0 else "SHORT",
-                       cash=0.0, fees=0.0, max_qty=0.0, open_qty=0.0, open_cost=0.0)
+                       cash=0.0, fees=0.0, max_qty=0.0, open_qty=0.0, open_cost=0.0,
+                       close_qty=0.0, close_cost=0.0)
         net += q
         if cur is not None:
             cur["cash"] -= q * p          # buys spend cash, sells receive
@@ -138,6 +140,8 @@ def main():
             same_side = (q > 0) == (cur["side"] == "LONG")
             if same_side:                  # opening/adding: track weighted entry
                 cur["open_qty"] += abs(q); cur["open_cost"] += abs(q) * p
+            else:                          # reducing/closing: track weighted exit
+                cur["close_qty"] += abs(q); cur["close_cost"] += abs(q) * p
             if abs(net) <= DUST:           # round trip closed
                 cur.update(closed=t["time"], realized=cur["cash"] - net * p - cur["fees"])
                 trips.append(cur); cur = None
@@ -167,7 +171,7 @@ def main():
     if cur is None and abs(btc_net) > DUST:
         recon_ok = False
         open_pos = dict(side="LONG" if btc_net > 0 else "SHORT", qty=round(abs(btc_net), 6),
-                        avg_entry=None, opened=None, fees_usdt=0.0, interest_usdt=None,
+                        avg_entry=None, entry_px=None, opened=None, fees_usdt=0.0, interest_usdt=None,
                         unrealized_usd=None, unrealized_pct_equity=None,
                         note=f"entry predates the {DAYS}-day fill window — size is exact, "
                              f"average entry and P&L unavailable")
@@ -175,6 +179,7 @@ def main():
         avg = cur["open_cost"] / cur["open_qty"] if cur["open_qty"] else 0.0
         unreal = (px - avg) * net - cur["fees"]     # signed net: works for long and short
         open_pos = dict(side=cur["side"], qty=round(abs(net), 6), avg_entry=round(avg, 2),
+                        entry_px=round(avg, 2),   # M1-dashboard alias of avg_entry (same number)
                         opened=iso(cur["opened"]), fees_usdt=round(cur["fees"], 2),
                         interest_usdt=round(open_interest, 4),
                         unrealized_usd=round(unreal, 2),
@@ -234,6 +239,8 @@ def main():
         recent_closed=[dict(side=c["side"], opened=iso(c["opened"]), closed=iso(c["closed"]),
                             max_qty=round(c["max_qty"], 6), fees_usdt=round(c["fees"], 2),
                             interest_usdt=round(c.get("interest", 0), 4),
+                            entry_px=round(c["open_cost"] / c["open_qty"], 2) if c.get("open_qty") else None,
+                            exit_px=round(c["close_cost"] / c["close_qty"], 2) if c.get("close_qty") else None,
                             realized_usd=round(c["realized"], 2)) for c in trips[-10:]][::-1],
     )
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
