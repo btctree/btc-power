@@ -1,6 +1,6 @@
 {
- "generated": "2026-09-21 17:05 UTC",
- "price": 85926.99,
+ "generated": "2026-09-21 18:05 UTC",
+ "price": 85961.14,
  "equity_usdt": 328.31,
  "baseline": {
   "ts": "2026-08-12 19:25 UTC",
@@ -3842,6 +3842,10 @@
   {
    "t": "2026-09-21 17:05 UTC",
    "eq": 328.31
+  },
+  {
+   "t": "2026-09-21 18:05 UTC",
+   "eq": 328.31
   }
  ],
  "margin_level": 999.0,
@@ -3880,7 +3884,7 @@
    "closed": "2026-09-19 00:36 UTC",
    "max_qty": 0.00731,
    "fees_usdt": 2.09,
-   "interest_usdt": 0.1776,
+   "interest_usdt": 0.1775,
    "entry_px": 75222.78,
    "exit_px": 76088.46,
    "realized_usd": 37.97
