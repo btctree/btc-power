@@ -1,6 +1,6 @@
 {
- "generated": "2026-10-08 18:05 UTC",
- "price": 80620.7,
+ "generated": "2026-10-08 19:05 UTC",
+ "price": 81600.01,
  "equity_usdt": 273.2,
  "baseline": {
   "ts": "2026-08-12 19:25 UTC",
@@ -5478,9 +5478,13 @@
   {
    "t": "2026-10-08 18:05 UTC",
    "eq": 273.2
+  },
+  {
+   "t": "2026-10-08 19:05 UTC",
+   "eq": 273.2
   }
  ],
- "margin_level": 208.29247391,
+ "margin_level": 206.27656547,
  "bnb_fee_note": "BNB-paid fees valued at current BNB price (approx.)",
  "account_btc": 8e-06,
  "trading_frozen": true,
@@ -5490,8 +5494,8 @@
   "entry_price": 63600.0,
   "entry_date": "2026-08-11",
   "as_of": "2026-10-07",
-  "target_btc": 0.005083,
-  "gap_usd": 409.13,
+  "target_btc": 0.005022,
+  "gap_usd": 409.14,
   "account_matches": false
  },
  "total_interest_usdt": 1.5813,
@@ -5505,7 +5509,7 @@
    "closed": "2026-10-08 17:24 UTC",
    "max_qty": 0.011778,
    "fees_usdt": 1.96,
-   "interest_usdt": 1.3086,
+   "interest_usdt": 1.322,
    "entry_px": 85251.05,
    "exit_px": 80737.73,
    "realized_usd": -57.44
@@ -5515,7 +5519,7 @@
    "opened": "2026-09-21 08:18 UTC",
    "closed": "2026-09-21 10:57 UTC",
    "max_qty": 0.009548,
-   "fees_usdt": 1.5,
+   "fees_usdt": 1.51,
    "interest_usdt": 0.0052,
    "entry_px": 82012.51,
    "exit_px": 84408.0,
@@ -5527,7 +5531,7 @@
    "closed": "2026-09-19 00:36 UTC",
    "max_qty": 0.007298,
    "fees_usdt": 2.08,
-   "interest_usdt": 0.1606,
+   "interest_usdt": 0.1623,
    "entry_px": 75222.78,
    "exit_px": 76088.46,
    "realized_usd": 38.94
