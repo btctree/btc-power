@@ -1,7 +1,7 @@
 {
- "generated": "2026-10-28 06:05 UTC",
- "price": 80905.04,
- "equity_usdt": 264.33,
+ "generated": "2026-10-28 07:05 UTC",
+ "price": 80912.36,
+ "equity_usdt": 263.68,
  "baseline": {
   "ts": "2026-08-12 19:25 UTC",
   "equity": 292.2
@@ -7350,15 +7350,19 @@
   {
    "t": "2026-10-28 06:05 UTC",
    "eq": 264.33
+  },
+  {
+   "t": "2026-10-28 07:05 UTC",
+   "eq": 263.68
   }
  ],
- "margin_level": 1.80680193,
+ "margin_level": 104.10477965,
  "bnb_fee_note": "BNB-paid fees valued at current BNB price (approx.)",
- "account_btc": -0.00401,
+ "account_btc": -1.4e-05,
  "borrowed": {
-  "btc": 0.00401,
+  "btc": 1.4e-05,
   "usdt": 0.0,
-  "total_usdt_value": 324.43
+  "total_usdt_value": 1.13
  },
  "trading_frozen": true,
  "model": {
@@ -7367,59 +7371,59 @@
   "entry_price": 63600.0,
   "entry_date": "2026-08-11",
   "as_of": "2026-10-27",
-  "target_btc": 0.000555,
-  "gap_usd": 369.37,
+  "target_btc": 0.000554,
+  "gap_usd": 45.96,
   "account_matches": false
  },
- "total_interest_usdt": 1.639,
- "interest_watermark_ms": 1793167200000,
+ "total_interest_usdt": 1.6398,
+ "interest_watermark_ms": 1793170800000,
  "reconstruction_ok": true,
- "open": {
-  "side": "SHORT",
-  "qty": 0.00401,
-  "avg_entry": 80100.4,
-  "opened": "2026-10-26 05:20 UTC",
-  "fees_usdt": 0.31,
-  "interest_usdt": 0.0377,
-  "unrealized_usd": -3.54,
-  "unrealized_pct_equity": -1.34
- },
+ "open": null,
  "recent_closed": [
+  {
+   "side": "SHORT",
+   "opened": "2026-10-26 05:20 UTC",
+   "closed": "2026-10-28 06:20 UTC",
+   "max_qty": 0.004014,
+   "fees_usdt": 0.64,
+   "interest_usdt": 0.0377,
+   "realized_usd": -8.66
+  },
   {
    "side": "LONG",
    "opened": "2026-10-21 23:08 UTC",
    "closed": "2026-10-21 23:08 UTC",
-   "max_qty": 0.00364,
+   "max_qty": 0.003636,
    "fees_usdt": 0.61,
    "interest_usdt": 0,
-   "realized_usd": -0.66
+   "realized_usd": -0.32
   },
   {
    "side": "LONG",
    "opened": "2026-10-21 22:11 UTC",
    "closed": "2026-10-21 22:20 UTC",
-   "max_qty": 0.01083,
+   "max_qty": 0.010826,
    "fees_usdt": 1.83,
    "interest_usdt": 0,
-   "realized_usd": -4.04
+   "realized_usd": -3.7
   },
   {
    "side": "LONG",
    "opened": "2026-10-09 07:23 UTC",
    "closed": "2026-10-09 08:20 UTC",
-   "max_qty": 0.01182,
+   "max_qty": 0.011816,
    "fees_usdt": 1.96,
    "interest_usdt": 0.0037,
-   "realized_usd": -1.48
+   "realized_usd": -1.15
   },
   {
    "side": "LONG",
    "opened": "2026-09-22 05:20 UTC",
    "closed": "2026-10-08 17:24 UTC",
-   "max_qty": 0.01175,
+   "max_qty": 0.011746,
    "fees_usdt": 1.96,
-   "interest_usdt": 1.3514,
-   "realized_usd": -55.17
+   "interest_usdt": 1.3506,
+   "realized_usd": -54.85
   }
  ]
 }
