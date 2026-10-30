@@ -67,8 +67,11 @@ def interest_rows(key, sec, start_ms):
                 return rows
             batch = r.get("rows", [])
             rows += batch
-            if len(batch) < 100 or page >= 10:
+            if len(batch) < 100:
                 break
+            if page >= 10:
+                return rows   # page cap hit: stop ALL chunks — a mid-window gap with later
+                              # chunks fetched would advance the watermark past unseen rows
             page += 1
         cur = chunk_end + 1
     return rows
@@ -93,59 +96,128 @@ def main():
         print("[real_pnl] no API key available — skipping (dashboard shows model view only).")
         return
 
+    prev = {}
+    try:
+        prev = json.load(open(OUT, encoding="utf-8"))
+    except Exception:
+        pass
+
     px = float(_get("/api/v3/ticker/price", {"symbol": "BTCUSDT"})["price"])
     try:
         bnb_px = float(_get("/api/v3/ticker/price", {"symbol": "BNBUSDT"})["price"])
     except Exception:
-        bnb_px = 0.0
+        # sync audit 2026-10-30: a one-run ticker failure used to value all BNB (balance,
+        # liability, interest rows) at $0 — a permanent phantom dip in the persisted series.
+        # Fall back to the last published price; 0.0 only before any price was ever stored.
+        bnb_px = float(prev.get("bnb_px") or 0.0)
 
     acct = _signed(key, sec, "/sapi/v1/margin/account", {})
     assets = {x["asset"]: x for x in acct["userAssets"]}
     btc_net = float(assets.get("BTC", {}).get("netAsset", 0))
     usdt_net = float(assets.get("USDT", {}).get("netAsset", 0))
-    equity = usdt_net + btc_net * px
-    # Outstanding loans, surfaced explicitly (2026-10-23: a $38.85 USDT loan from a manual app
-    # round-trip sat invisible for two days — equity < free cash with nothing on screen saying why).
-    borrowed = dict(
-        btc=float(assets.get("BTC", {}).get("borrowed", 0)),
-        usdt=float(assets.get("USDT", {}).get("borrowed", 0)))
-    borrowed["total_usdt_value"] = round(borrowed["btc"] * px + borrowed["usdt"], 2)
+    # BNB: the M1 trader's dust convert (2026-10-29) parks close residue as BNB — still equity;
+    # without this term every convert would print as a phantom ~$1 loss on the curve
+    bnb_net = float(assets.get("BNB", {}).get("netAsset", 0))
+    equity = usdt_net + btc_net * px + bnb_net * bnb_px
+    # Outstanding LIABILITIES (borrowed + accrued interest), surfaced explicitly (2026-10-23:
+    # a $38.85 USDT loan from a manual app round-trip sat invisible for two days; 2026-10-29:
+    # 0.0019 BNB of PERIODIC_CONVERTED interest — "pay interest in BNB" is ON — sat invisible
+    # since Aug). Interest is included because it is money that must be repaid.
+    def _liab(a):
+        r = assets.get(a, {})
+        return float(r.get("borrowed", 0)) + float(r.get("interest", 0))
+    borrowed = dict(btc=_liab("BTC"), usdt=_liab("USDT"), bnb=_liab("BNB"))
+    borrowed["total_usdt_value"] = round(
+        borrowed["btc"] * px + borrowed["usdt"] + borrowed["bnb"] * bnb_px, 2)
 
     start = int(time.time() * 1000) - DAYS * 86_400_000
-    fills = _signed(key, sec, "/sapi/v1/margin/myTrades",
-                    {"symbol": "BTCUSDT", "startTime": start})
+    fills, _from = [], None
+    while True:
+        _p = {"symbol": "BTCUSDT", "limit": 1000}
+        if _from is None:
+            _p["startTime"] = start
+        else:
+            _p["fromId"] = _from + 1
+        _batch = _signed(key, sec, "/sapi/v1/margin/myTrades", _p)
+        fills += _batch
+        if len(_batch) < 1000:
+            break
+        _from = max(int(t["id"]) for t in _batch)
     fills.sort(key=lambda t: t["time"])
 
-    # anchor: walk MUST end at the live net position
-    net = btc_net - sum((1 if t["isBuyer"] else -1) * float(t["qty"]) for t in fills)
-    trips, cur = [], None
+    # Walk ORDERS, not raw fills (2026-10-28 fix, M1 session, owner-approved): the 10-26 short's
+    # entry order filled in 19 parts and the FIRST partial (0.00008) kept |net| under DUST, so the
+    # trip opened mid-order and $6.4 of entry proceeds never entered its cash (realized -8.66 vs
+    # true ~-4.2). One order = one decision: aggregate each order to signed qty / VWAP / summed fees.
+    events, byid = [], {}
     for t in fills:
-        q = (1 if t["isBuyer"] else -1) * float(t["qty"])
-        p = float(t["price"]); f = fee_usdt(t, bnb_px)
+        k = (t["orderId"], t["isBuyer"])
+        e = byid.get(k)
+        if e is None:
+            e = byid[k] = dict(time=t["time"], q=0.0, cost=0.0, fee=0.0)
+            events.append(e)
+        sgn = 1 if t["isBuyer"] else -1
+        e["q"] += sgn * float(t["qty"]); e["cost"] += float(t["qty"]) * float(t["price"])
+        e["fee"] += fee_usdt(t, bnb_px)
+
+    # --- non-fill BTC balance changes (sync audit 2026-10-30, walk-anchor fix): dust converts
+    # (BTC->BNB), Close-All settles and transfers move BTC without any BTCUSDT fill; unseen,
+    # each one shifts the derived baseline and cumulative shifts > DUST would mis-segment old
+    # trips. Detect the unexplained delta vs the previous run and carry it as time-placed,
+    # fill-less adjustment events (mechanism-agnostic). Adjustments move the running net but
+    # never open a trip and never touch trip cash/VWAPs.
+    adjs = [a for a in (prev.get("balance_adjustments") or []) if int(a.get("t", 0)) >= start]
+    _pa = prev.get("btc_net_asof") or {}
+    if _pa.get("t"):
+        _pa_t = int(_pa["t"])
+        _fills_since = sum((1 if t["isBuyer"] else -1) * float(t["qty"])
+                           for t in fills if int(t["time"]) > _pa_t)
+        _drift = btc_net - (float(_pa.get("net") or 0) + _fills_since)
+        if abs(_drift) > 2e-7:    # above float noise; BTC-paid fees also land here (real)
+            adjs.append({"t": _pa_t + 1, "q": round(_drift, 8)})
+    for a in adjs:
+        events.append(dict(time=int(a["t"]), q=float(a["q"]), cost=0.0, fee=0.0, adj=True))
+    events.sort(key=lambda e: e["time"])
+
+    # anchor: walk MUST end at the live net position
+    net = btc_net - sum(e["q"] for e in events)
+    trips, cur = [], None
+    for e in events:
+        q = e["q"]; p = e["cost"] / abs(e["q"]) if e["q"] else 0.0; f = e["fee"]
         # A flip can happen in ONE order (binance_trader places a single signed delta), so the net
         # can cross zero without ever resting near flat. Close the old trip and open the new one at
         # the crossing, otherwise the walk keeps the stale side and a meaningless average entry.
         crossed = cur is not None and net != 0 and (net > 0) != (net + q > 0) and abs(net + q) > DUST
         if crossed:
-            cur.update(closed=t["time"], realized=cur["cash"] + net * p - cur["fees"])
+            cur.update(closed=e["time"],
+                       realized=cur["cash"] + (net - cur["net0"]) * p - cur["fees"])
             trips.append(cur)
             cur = None
-            q_new = net + q          # the part of this fill that opens the opposite position
+            q_new = net + q          # the part of this order that opens the opposite position
             net = 0.0
             q = q_new
-        if cur is None and abs(net) <= DUST and abs(net + q) > DUST:
-            cur = dict(opened=t["time"], side="LONG" if q > 0 else "SHORT",
-                       cash=0.0, fees=0.0, max_qty=0.0, open_qty=0.0, open_cost=0.0)
+        if cur is None and abs(net) <= DUST and abs(net + q) > DUST and not e.get("adj"):
+            cur = dict(opened=e["time"], side="LONG" if q > 0 else "SHORT", net0=net,
+                       cash=0.0, fees=0.0, max_qty=0.0, open_qty=0.0, open_cost=0.0,
+                       entry_px=p, close_qty=0.0, close_cost=0.0, last_px=p)
         net += q
         if cur is not None:
             cur["cash"] -= q * p          # buys spend cash, sells receive
             cur["fees"] += f
             cur["max_qty"] = max(cur["max_qty"], abs(net))
             same_side = (q > 0) == (cur["side"] == "LONG")
-            if same_side:                  # opening/adding: track weighted entry
-                cur["open_qty"] += abs(q); cur["open_cost"] += abs(q) * p
+            if not e.get("adj"):
+                cur["last_px"] = p
+                if same_side:              # opening/adding: track weighted entry
+                    cur["open_qty"] += abs(q); cur["open_cost"] += abs(q) * p
+                else:                      # reducing/closing: track weighted exit
+                    cur["close_qty"] += abs(q); cur["close_cost"] += abs(q) * p
             if abs(net) <= DUST:           # round trip closed
-                cur.update(closed=t["time"], realized=cur["cash"] - net * p - cur["fees"])
+                # realized marks only the CHANGE in residual dust across the trip at the close
+                # price (2026-10-28 fix: the old `- net * p` had the residual's SIGN inverted and
+                # charged pre-existing dust to the trip — reconciles with the account's equity).
+                cur.update(closed=e["time"],
+                           realized=cur["cash"] + (net - cur["net0"]) * p - cur["fees"])
                 trips.append(cur); cur = None
 
     # --- actual borrow interest (owner request via M1 session 2026-09-20): real margin cost,
@@ -181,13 +253,27 @@ def main():
         avg = cur["open_cost"] / cur["open_qty"] if cur["open_qty"] else 0.0
         unreal = (px - avg) * net - cur["fees"]     # signed net: works for long and short
         open_pos = dict(side=cur["side"], qty=round(abs(net), 6), avg_entry=round(avg, 2),
+                        avg_entry_px=round(avg, 2),
+                        first_entry_px=round(cur.get("entry_px") or avg, 2),
                         opened=iso(cur["opened"]), fees_usdt=round(cur["fees"], 2),
                         interest_usdt=round(open_interest, 4),
                         unrealized_usd=round(unreal, 2),
                         unrealized_pct_equity=round(unreal / equity * 100, 2) if equity else None)
 
     # --- account-vs-model truth (so the dashboard can never imply the model IS the account) ---
+    # trading_frozen reflects btc-power's STOP (the Max B executor) — NOT the M1 trader that
+    # actually drives this account (sync audit 2026-10-30): publish both, named honestly.
     frozen = os.path.exists(os.path.join(HERE, "..", "STOP"))
+    m1_frozen = os.path.exists(os.path.expanduser("~/m1-trader/STOP"))
+    m1 = {}
+    try:
+        with urllib.request.urlopen(
+                "https://btctree.github.io/btc-dashboard/m1_state.json", timeout=15) as _r:
+            _m1s = json.loads(_r.read())
+        m1 = dict(signal=_m1s.get("signal"), entry=(_m1s.get("state") or {}).get("BY"),
+                  stop=(_m1s.get("state") or {}).get("BV"), as_of=_m1s.get("last_date"))
+    except Exception:
+        pass
     model = {}
     try:
         _d = json.load(open(os.path.join(HERE, "..", "out", "results_live.json"), encoding="utf-8"))
@@ -205,11 +291,6 @@ def main():
     # --- real performance record: inception baseline + equity history (persisted across runs) ---
     # Seeded 2026-08-12 when the owner flattened the account (~$292.20) and asked for a real
     # track record "from now". First run writes the baseline; it is never overwritten after that.
-    prev = {}
-    try:
-        prev = json.load(open(OUT, encoding="utf-8"))
-    except Exception:
-        pass
     now_iso = iso(int(time.time() * 1000))
     baseline = prev.get("baseline") or dict(ts=now_iso, equity=round(equity, 2))
     # running interest total since baseline: watermark-persisted so it stays correct even after
@@ -220,10 +301,17 @@ def main():
     except Exception:
         bl_ms = start
     watermark = int(prev.get("interest_watermark_ms") or bl_ms)
-    new_int = sum(i_usdt(r) for r in irows if int(r.get("interestAccuredTime", 0)) > watermark)
-    total_interest = round(float(prev.get("total_interest_usdt") or 0) + new_int, 4)
-    watermark = max([watermark] + [int(r.get("interestAccuredTime", 0)) for r in irows])
-    hist = (prev.get("equity_history") or []) + [dict(t=now_iso, eq=round(equity, 2))]
+    if bnb_px == 0 and any(r.get("asset") == "BNB" for r in irows
+                           if int(r.get("interestAccuredTime", 0)) > watermark):
+        # no BNB price at all (first run + ticker down): defer — recounted next run
+        total_interest = round(float(prev.get("total_interest_usdt") or 0), 4)
+    else:
+        new_int = sum(i_usdt(r) for r in irows if int(r.get("interestAccuredTime", 0)) > watermark)
+        total_interest = round(float(prev.get("total_interest_usdt") or 0) + new_int, 4)
+        watermark = max([watermark] + [int(r.get("interestAccuredTime", 0)) for r in irows])
+    hist = list(prev.get("equity_history") or [])
+    if not (bnb_px == 0 and abs(bnb_net) > 1e-9):
+        hist = hist + [dict(t=now_iso, eq=round(equity, 2))]   # never persist a $0-BNB point
     dedup = {}
     for pt in hist:
         dedup[pt["t"][:13]] = pt              # one point per hour (key: 'YYYY-MM-DD HH')
@@ -234,13 +322,25 @@ def main():
         baseline=baseline, equity_history=hist,
         margin_level=float(acct.get("marginLevel", 999)),
         bnb_fee_note="BNB-paid fees valued at current BNB price (approx.)" if bnb_px else "",
-        account_btc=round(btc_net, 6), borrowed=borrowed, trading_frozen=frozen, model=model,
+        account_btc=round(btc_net, 6), borrowed=borrowed,
+        trading_frozen=frozen, maxb_frozen=frozen, m1_frozen=m1_frozen, m1=m1,
+        bnb_px=bnb_px,
+        btc_net_asof=dict(t=int(time.time() * 1000), net=round(btc_net, 8)),
+        balance_adjustments=adjs,
+        model=model,
         total_interest_usdt=total_interest, interest_watermark_ms=watermark,
         reconstruction_ok=recon_ok, open=open_pos,
         recent_closed=[dict(side=c["side"], opened=iso(c["opened"]), closed=iso(c["closed"]),
                             max_qty=round(c["max_qty"], 6), fees_usdt=round(c["fees"], 2),
                             interest_usdt=round(c.get("interest", 0), 4),
-                            realized_usd=round(c["realized"], 2)) for c in trips[-10:]][::-1],
+                            realized_usd=round(c["realized"], 2),
+                            first_entry_px=round(c.get("entry_px") or 0, 2) or None,
+                            avg_entry_px=(round(c["open_cost"] / c["open_qty"], 2)
+                                          if c.get("open_qty") else None),
+                            avg_exit_px=(round(c["close_cost"] / c["close_qty"], 2)
+                                         if c.get("close_qty") else None),
+                            last_exit_px=round(c.get("last_px") or 0, 2) or None)
+                       for c in trips[-10:]][::-1],
     )
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     tmp = OUT + ".tmp"

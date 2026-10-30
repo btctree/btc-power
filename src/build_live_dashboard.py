@@ -86,7 +86,7 @@ __EXECBANNER__
     <div class="row"><span class="k">Unrealized P&amp;L (after fees)</span><span class="v" id="ac_pnl"></span></div>
     <div class="row"><span class="k">Avg entry (real fills)</span><span class="v" id="ac_entry"></span></div>
     <div class="row"><span class="k">Equity · margin level</span><span class="v" id="ac_eq"></span></div>
-    <div class="row" id="ac_loan_row" style="display:none"><span class="k">Loans outstanding</span><span class="v amb" id="ac_loan"></span></div>
+    <div class="row" id="ac_loan_row" style="display:none"><span class="k">Owed (loan + interest)</span><span class="v amb" id="ac_loan"></span></div>
     <div class="row"><span class="k">Auto-trading</span><span class="v" id="ac_arm"></span></div>
     <div id="ac_warn"></div>
     <div class="note" id="ac_gen" style="margin-top:6px"></div>
@@ -251,13 +251,14 @@ if(R&&(R.open||R.trading_frozen!=null)){$('acctcard').style.display='';
  $('ac_eq').textContent='$'+f2(R.equity_usdt)+' · '+(R.margin_level>=999?'no debt':Number(R.margin_level).toFixed(2));
  const BW=R.borrowed||null;
  if(BW&&BW.total_usdt_value>1){$('ac_loan_row').style.display='';
-  $('ac_loan').textContent='$'+f2(BW.total_usdt_value)+(BW.btc>0?' ('+BW.btc+' BTC + $'+f2(BW.usdt)+')':' USDT');}
+  const _lp=[];if(BW.usdt>0.005)_lp.push('$'+f2(BW.usdt)+' USDT');if(BW.btc>1e-8)_lp.push(BW.btc+' BTC');if(BW.bnb>1e-8)_lp.push(BW.bnb+' BNB');
+  $('ac_loan').textContent='$'+f2(BW.total_usdt_value)+(_lp.length?' ('+_lp.join(' + ')+')':'');}
  $('ac_arm').innerHTML=R.trading_frozen?'<span class="amb">⏸ FROZEN (kill switch on)</span>':'<span class="pos">● live — reconciles hourly</span>';
  const w=[];
  if(R.trading_frozen)w.push('Auto-trading is <b>paused</b>, so your account does <b>not</b> follow the model below. It will not open, close, or resize anything until the kill switch is removed.');
- if(RM&&RM.account_matches===false)w.push(`Your account <b>differs from the model</b>: model wants <b>${RM.direction} ${RM.exposure_mult}×</b> (${RM.target_btc>=0?'+':''}${RM.target_btc} BTC), you hold <b>${o?o.side+' '+o.qty:'nothing'}</b> — a gap of about <b>$${f0(RM.gap_usd)}</b>.`);
+ if(RM&&RM.account_matches===false&&!R.trading_frozen)w.push(`Your account <b>differs from the Max B growth model</b>: it wants <b>${RM.direction} ${RM.exposure_mult}×</b> (${RM.target_btc>=0?'+':''}${RM.target_btc} BTC), you hold <b>${o?o.side+' '+o.qty:'nothing'}</b> — a gap of about <b>$${f0(RM.gap_usd)}</b>.`);
  if(R.reconstruction_ok===false)w.push('Position <b>size</b> is exact, but its average entry and P&L could not be reconstructed (the entry is older than the fill window) — treat the P&L above as unavailable, not zero.');
- if(R.borrowed&&R.borrowed.total_usdt_value>1&&!o)w.push(`A <b>$${f2(R.borrowed.total_usdt_value)} loan is outstanding with no open position</b> — likely left by a manual trade without auto-repay. It accrues interest until repaid (Binance app → Margin → Repay, or the executor's housekeeping).`);
+ if(R.borrowed&&R.borrowed.total_usdt_value>1&&!o)w.push(`A <b>$${f2(R.borrowed.total_usdt_value)} balance is owed with no open position</b> (margin loan and/or accrued interest — unpaid interest can block new borrowing). Repay via Binance app → Margin → Repay, or the executor's housekeeping clears what it can.`);
  // staleness: the snapshot is published hourly by the VM; if it stops, say so instead of ticking a fake-live P&L
  const ag=(()=>{if(!R.generated)return null;const m=/(\d{4})-(\d\d)-(\d\d) (\d\d):(\d\d)/.exec(R.generated);if(!m)return null;
    return (Date.now()-Date.UTC(+m[1],+m[2]-1,+m[3],+m[4],+m[5]))/60000;})();
