@@ -1,6 +1,6 @@
 {
- "generated": "2026-10-30 09:05 UTC",
- "price": 77971.21,
+ "generated": "2026-10-30 10:05 UTC",
+ "price": 77511.3,
  "equity_usdt": 262.02,
  "baseline": {
   "ts": "2026-08-12 19:25 UTC",
@@ -7554,6 +7554,10 @@
   {
    "t": "2026-10-30 09:05 UTC",
    "eq": 262.02
+  },
+  {
+   "t": "2026-10-30 10:05 UTC",
+   "eq": 262.02
   }
  ],
  "margin_level": 999.0,
@@ -7566,13 +7570,27 @@
   "total_usdt_value": 0.0
  },
  "trading_frozen": true,
+ "maxb_frozen": true,
+ "m1_frozen": false,
+ "m1": {
+  "signal": "SHORT",
+  "entry": 77991.89,
+  "stop": 83451.32,
+  "as_of": "2026-10-29"
+ },
+ "bnb_px": 702.64,
+ "btc_net_asof": {
+  "t": 1793354719776,
+  "net": 0.0
+ },
+ "balance_adjustments": [],
  "model": {
   "direction": "LONG",
   "exposure_mult": 0.17,
   "entry_price": 63600.0,
   "entry_date": "2026-08-11",
   "as_of": "2026-10-29",
-  "target_btc": 0.000571,
+  "target_btc": 0.000575,
   "gap_usd": 44.54,
   "account_matches": false
  },
@@ -7587,8 +7605,12 @@
    "closed": "2026-10-28 06:20 UTC",
    "max_qty": 0.00407,
    "fees_usdt": 0.65,
-   "interest_usdt": 0.0357,
-   "realized_usd": -4.2
+   "interest_usdt": 0.0355,
+   "realized_usd": -4.2,
+   "first_entry_px": 80100.4,
+   "avg_entry_px": 80100.4,
+   "avg_exit_px": 80987.76,
+   "last_exit_px": 80987.76
   },
   {
    "side": "LONG",
@@ -7597,7 +7619,11 @@
    "max_qty": 0.00358,
    "fees_usdt": 0.61,
    "interest_usdt": 0,
-   "realized_usd": -0.66
+   "realized_usd": -0.66,
+   "first_entry_px": 84322.73,
+   "avg_entry_px": 84322.73,
+   "avg_exit_px": 84309.43,
+   "last_exit_px": 84309.43
   },
   {
    "side": "LONG",
@@ -7606,7 +7632,11 @@
    "max_qty": 0.01077,
    "fees_usdt": 1.83,
    "interest_usdt": 0,
-   "realized_usd": -3.2
+   "realized_usd": -3.2,
+   "first_entry_px": 84725.49,
+   "avg_entry_px": 84725.49,
+   "avg_exit_px": 84599.99,
+   "last_exit_px": 84599.99
   },
   {
    "side": "LONG",
@@ -7615,7 +7645,11 @@
    "max_qty": 0.01176,
    "fees_usdt": 1.96,
    "interest_usdt": 0.0035,
-   "realized_usd": -1.48
+   "realized_usd": -1.48,
+   "first_entry_px": 82599.99,
+   "avg_entry_px": 82599.99,
+   "avg_exit_px": 82640.01,
+   "last_exit_px": 82640.01
   },
   {
    "side": "LONG",
@@ -7623,8 +7657,12 @@
    "closed": "2026-10-08 17:24 UTC",
    "max_qty": 0.01169,
    "fees_usdt": 1.96,
-   "interest_usdt": 1.279,
-   "realized_usd": -55.17
+   "interest_usdt": 1.2743,
+   "realized_usd": -55.17,
+   "first_entry_px": 85231.34,
+   "avg_entry_px": 85251.05,
+   "avg_exit_px": 80737.73,
+   "last_exit_px": 80555.0
   }
  ]
 }
