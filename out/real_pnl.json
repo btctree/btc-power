@@ -1,6 +1,6 @@
 {
- "generated": "2026-10-31 06:05 UTC",
- "price": 77370.16,
+ "generated": "2026-10-31 07:05 UTC",
+ "price": 77392.36,
  "equity_usdt": 262.02,
  "baseline": {
   "ts": "2026-08-12 19:25 UTC",
@@ -7638,6 +7638,10 @@
   {
    "t": "2026-10-31 06:05 UTC",
    "eq": 262.02
+  },
+  {
+   "t": "2026-10-31 07:05 UTC",
+   "eq": 262.02
   }
  ],
  "margin_level": 999.0,
@@ -7658,9 +7662,9 @@
   "stop": 81668.8,
   "as_of": "2026-10-30"
  },
- "bnb_px": 704.3,
+ "bnb_px": 701.98,
  "btc_net_asof": {
-  "t": 1793426720164,
+  "t": 1793430320607,
   "net": 0.0
  },
  "balance_adjustments": [],
@@ -7685,7 +7689,7 @@
    "closed": "2026-10-28 06:20 UTC",
    "max_qty": 0.00407,
    "fees_usdt": 0.65,
-   "interest_usdt": 0.0356,
+   "interest_usdt": 0.0355,
    "realized_usd": -4.2,
    "first_entry_px": 80100.4,
    "avg_entry_px": 80100.4,
@@ -7737,7 +7741,7 @@
    "closed": "2026-10-08 17:24 UTC",
    "max_qty": 0.01169,
    "fees_usdt": 1.96,
-   "interest_usdt": 1.2773,
+   "interest_usdt": 1.2731,
    "realized_usd": -55.17,
    "first_entry_px": 85231.34,
    "avg_entry_px": 85251.05,
