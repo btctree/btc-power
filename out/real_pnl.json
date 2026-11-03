@@ -1,7 +1,7 @@
 {
- "generated": "2026-11-03 20:05 UTC",
- "price": 77712.0,
- "equity_usdt": 261.9,
+ "generated": "2026-11-03 21:05 UTC",
+ "price": 77880.01,
+ "equity_usdt": 261.22,
  "baseline": {
   "ts": "2026-08-12 19:25 UTC",
   "equity": 292.2
@@ -7982,16 +7982,20 @@
   {
    "t": "2026-11-03 20:05 UTC",
    "eq": 261.9
+  },
+  {
+   "t": "2026-11-03 21:05 UTC",
+   "eq": 261.22
   }
  ],
- "margin_level": 1.84263565,
+ "margin_level": 1.83850144,
  "bnb_fee_note": "BNB-paid fees valued at current BNB price (approx.)",
  "account_btc": -0.004,
  "borrowed": {
   "btc": 0.004,
   "usdt": 0.0,
-  "bnb": 5.017e-05,
-  "total_usdt_value": 310.88
+  "bnb": 5.123e-05,
+  "total_usdt_value": 311.56
  },
  "trading_frozen": true,
  "maxb_frozen": true,
@@ -8002,9 +8006,9 @@
   "stop": 81668.8,
   "as_of": "2026-11-02"
  },
- "bnb_px": 697.54,
+ "bnb_px": 700.0,
  "btc_net_asof": {
-  "t": 1793736320555,
+  "t": 1793739919957,
   "net": -0.004
  },
  "balance_adjustments": [
@@ -8019,8 +8023,8 @@
   "entry_price": 76816.0,
   "entry_date": "2026-11-02",
   "as_of": "2026-11-02",
-  "target_btc": -0.001348,
-  "gap_usd": 206.09,
+  "target_btc": -0.001342,
+  "gap_usd": 207.03,
   "account_matches": false
  },
  "total_interest_usdt": 1.6875,
@@ -8034,9 +8038,9 @@
   "first_entry_px": 77727.22,
   "opened": "2026-11-01 20:20 UTC",
   "fees_usdt": 0.31,
-  "interest_usdt": 0.0352,
-  "unrealized_usd": -0.25,
-  "unrealized_pct_equity": -0.1
+  "interest_usdt": 0.0354,
+  "unrealized_usd": -0.92,
+  "unrealized_pct_equity": -0.35
  },
  "recent_closed": [
   {
@@ -8058,7 +8062,7 @@
    "closed": "2026-10-28 06:20 UTC",
    "max_qty": 0.00407,
    "fees_usdt": 0.65,
-   "interest_usdt": 0.0353,
+   "interest_usdt": 0.0354,
    "realized_usd": -4.2,
    "first_entry_px": 80100.4,
    "avg_entry_px": 80100.4,
@@ -8110,7 +8114,7 @@
    "closed": "2026-10-08 17:24 UTC",
    "max_qty": 0.01169,
    "fees_usdt": 1.96,
-   "interest_usdt": 1.265,
+   "interest_usdt": 1.2695,
    "realized_usd": -55.17,
    "first_entry_px": 85231.34,
    "avg_entry_px": 85251.05,
