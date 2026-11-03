@@ -1,7 +1,7 @@
 {
- "generated": "2026-11-03 03:05 UTC",
- "price": 76591.26,
- "equity_usdt": 266.39,
+ "generated": "2026-11-03 04:05 UTC",
+ "price": 76795.35,
+ "equity_usdt": 265.57,
  "baseline": {
   "ts": "2026-08-12 19:25 UTC",
   "equity": 292.2
@@ -7914,16 +7914,20 @@
   {
    "t": "2026-11-03 03:05 UTC",
    "eq": 266.39
+  },
+  {
+   "t": "2026-11-03 04:05 UTC",
+   "eq": 265.57
   }
  ],
- "margin_level": 1.86954033,
+ "margin_level": 1.86480962,
  "bnb_fee_note": "BNB-paid fees valued at current BNB price (approx.)",
  "account_btc": -0.004,
  "borrowed": {
   "btc": 0.004,
   "usdt": 0.0,
-  "bnb": 3.223e-05,
-  "total_usdt_value": 306.39
+  "bnb": 3.328e-05,
+  "total_usdt_value": 307.2
  },
  "trading_frozen": true,
  "maxb_frozen": true,
@@ -7934,9 +7938,9 @@
   "stop": 81668.8,
   "as_of": "2026-11-01"
  },
- "bnb_px": 695.39,
+ "bnb_px": 696.16,
  "btc_net_asof": {
-  "t": 1793675120333,
+  "t": 1793678720137,
   "net": -0.004
  },
  "balance_adjustments": [
@@ -7951,12 +7955,12 @@
   "entry_price": 76816.0,
   "entry_date": "2026-11-02",
   "as_of": "2026-11-02",
-  "target_btc": -0.001391,
-  "gap_usd": 199.81,
+  "target_btc": -0.001383,
+  "gap_usd": 200.95,
   "account_matches": false
  },
- "total_interest_usdt": 1.6747,
- "interest_watermark_ms": 1793671200000,
+ "total_interest_usdt": 1.6754,
+ "interest_watermark_ms": 1793674800000,
  "reconstruction_ok": true,
  "open": {
   "side": "SHORT",
@@ -7966,9 +7970,9 @@
   "first_entry_px": 77727.22,
   "opened": "2026-11-01 20:20 UTC",
   "fees_usdt": 0.31,
-  "interest_usdt": 0.0219,
-  "unrealized_usd": 4.23,
-  "unrealized_pct_equity": 1.59
+  "interest_usdt": 0.0227,
+  "unrealized_usd": 3.42,
+  "unrealized_pct_equity": 1.29
  },
  "recent_closed": [
   {
@@ -8042,7 +8046,7 @@
    "closed": "2026-10-08 17:24 UTC",
    "max_qty": 0.01169,
    "fees_usdt": 1.96,
-   "interest_usdt": 1.2611,
+   "interest_usdt": 1.2625,
    "realized_usd": -55.17,
    "first_entry_px": 85231.34,
    "avg_entry_px": 85251.05,
