@@ -174,7 +174,12 @@ def main():
                            for t in fills if int(t["time"]) > _pa_t)
         _drift = btc_net - (float(_pa.get("net") or 0) + _fills_since)
         if abs(_drift) > 2e-7:    # above float noise; BTC-paid fees also land here (real)
-            adjs.append({"t": _pa_t + 1, "q": round(_drift, 8)})
+            # stamp AFTER the interval's last fill (2026-11-04 fix): an app-close settle
+            # follows its closing fill — stamping at interval START landed the adjustment
+            # inside/before the trip and cost the 11-01 trip its $2.33 residual credit
+            _ft = [int(t["time"]) for t in fills if int(t["time"]) > _pa_t]
+            adjs.append({"t": (max(_ft) + 1) if _ft else int(time.time() * 1000) - 1,
+                         "q": round(_drift, 8)})
     for a in adjs:
         events.append(dict(time=int(a["t"]), q=float(a["q"]), cost=0.0, fee=0.0, adj=True))
     events.sort(key=lambda e: e["time"])
