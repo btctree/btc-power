@@ -62,6 +62,10 @@ jobs:
   deploy-pages:
     needs: signal
     runs-on: ubuntu-latest
+    # Deploy hiccups are cosmetic (page self-heals next hour + on-page staleness warning) and were
+    # the source of every false-alarm failure email. Never fail the run for them; the signal job's
+    # real failures still alert. (Owner instruction 2026-09-06, reaffirmed 2026-11-05.)
+    continue-on-error: true
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url || steps.deployment2.outputs.page_url }}
