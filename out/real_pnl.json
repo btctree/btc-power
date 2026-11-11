@@ -1,7 +1,7 @@
 {
- "generated": "2026-11-11 22:05 UTC",
- "price": 74422.01,
- "equity_usdt": 274.92,
+ "generated": "2026-11-11 23:05 UTC",
+ "price": 73926.0,
+ "equity_usdt": 276.9,
  "baseline": {
   "ts": "2026-08-12 19:25 UTC",
   "equity": 292.2
@@ -8758,16 +8758,20 @@
   {
    "t": "2026-11-11 22:05 UTC",
    "eq": 274.92
+  },
+  {
+   "t": "2026-11-11 23:05 UTC",
+   "eq": 276.9
   }
  ],
- "margin_level": 1.9228874,
+ "margin_level": 1.93451198,
  "bnb_fee_note": "BNB-paid fees valued at current BNB price (approx.)",
  "account_btc": -0.004,
  "borrowed": {
   "btc": 0.004,
   "usdt": 0.0,
-  "bnb": 0.00025306,
-  "total_usdt_value": 297.86
+  "bnb": 0.0002541,
+  "total_usdt_value": 295.88
  },
  "trading_frozen": true,
  "maxb_frozen": true,
@@ -8778,9 +8782,9 @@
   "stop": 77818.18,
   "as_of": "2026-11-10"
  },
- "bnb_px": 685.53,
+ "bnb_px": 681.43,
  "btc_net_asof": {
-  "t": 1794434720333,
+  "t": 1794438321183,
   "net": -0.004
  },
  "balance_adjustments": [
@@ -8795,12 +8799,12 @@
   "entry_price": 76816.0,
   "entry_date": "2026-11-02",
   "as_of": "2026-11-10",
-  "target_btc": -0.001478,
-  "gap_usd": 187.72,
+  "target_btc": -0.001498,
+  "gap_usd": 184.94,
   "account_matches": false
  },
- "total_interest_usdt": 1.8257,
- "interest_watermark_ms": 1794430800000,
+ "total_interest_usdt": 1.8271,
+ "interest_watermark_ms": 1794438000000,
  "reconstruction_ok": true,
  "open": {
   "side": "SHORT",
@@ -8810,9 +8814,9 @@
   "first_entry_px": 77727.22,
   "opened": "2026-11-01 20:20 UTC",
   "fees_usdt": 0.31,
-  "interest_usdt": 0.173,
-  "unrealized_usd": 12.91,
-  "unrealized_pct_equity": 4.7
+  "interest_usdt": 0.1734,
+  "unrealized_usd": 14.89,
+  "unrealized_pct_equity": 5.38
  },
  "recent_closed": [
   {
@@ -8834,7 +8838,7 @@
    "closed": "2026-10-28 06:20 UTC",
    "max_qty": 0.00407,
    "fees_usdt": 0.65,
-   "interest_usdt": 0.0347,
+   "interest_usdt": 0.0345,
    "realized_usd": -4.2,
    "first_entry_px": 80100.4,
    "avg_entry_px": 80100.4,
@@ -8886,7 +8890,7 @@
    "closed": "2026-10-08 17:24 UTC",
    "max_qty": 0.01169,
    "fees_usdt": 1.96,
-   "interest_usdt": 1.2432,
+   "interest_usdt": 1.2358,
    "realized_usd": -55.17,
    "first_entry_px": 85231.34,
    "avg_entry_px": 85251.05,
