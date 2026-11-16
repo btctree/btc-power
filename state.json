@@ -1,8 +1,8 @@
 {
-  "direction": "SHORT",
-  "entry": 76816.0,
-  "cutloss": 88338.4,
-  "exposure": 0.91,
-  "last_report_date": "2026-11-15",
-  "last_run_ts": 1794783954.807287
+  "direction": "FLAT",
+  "entry": null,
+  "cutloss": null,
+  "exposure": null,
+  "last_report_date": "2026-11-16",
+  "last_run_ts": 1794787550.914747
 }
