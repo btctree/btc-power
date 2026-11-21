@@ -1,16 +1,12 @@
 {
- "generated": "2026-11-21 15:05 UTC",
- "price": 60385.84,
- "equity_usdt": 330.96,
+ "generated": "2026-11-21 16:05 UTC",
+ "price": 59872.0,
+ "equity_usdt": 333.02,
  "baseline": {
   "ts": "2026-08-12 19:25 UTC",
   "equity": 292.2
  },
  "equity_history": [
-  {
-   "t": "2026-08-22 00:05 UTC",
-   "eq": 308.85
-  },
   {
    "t": "2026-08-22 01:05 UTC",
    "eq": 308.85
@@ -8806,16 +8802,20 @@
   {
    "t": "2026-11-21 15:05 UTC",
    "eq": 330.96
+  },
+  {
+   "t": "2026-11-21 16:05 UTC",
+   "eq": 333.02
   }
  ],
- "margin_level": 2.3690993,
+ "margin_level": 2.38888113,
  "bnb_fee_note": "BNB-paid fees valued at current BNB price (approx.)",
  "account_btc": -0.004,
  "borrowed": {
   "btc": 0.004,
   "usdt": 0.0,
-  "bnb": 0.00049643,
-  "total_usdt_value": 241.82
+  "bnb": 0.00049748,
+  "total_usdt_value": 239.76
  },
  "trading_frozen": true,
  "maxb_frozen": true,
@@ -8826,9 +8826,9 @@
   "stop": 61822.83,
   "as_of": "2026-11-20"
  },
- "bnb_px": 547.57,
+ "bnb_px": 545.97,
  "btc_net_asof": {
-  "t": 1795273521409,
+  "t": 1795277120990,
   "net": -0.004
  },
  "balance_adjustments": [
@@ -8843,12 +8843,12 @@
   "entry_price": 58951.51,
   "entry_date": "2026-11-20",
   "as_of": "2026-11-20",
-  "target_btc": 0.002302,
-  "gap_usd": 380.55,
+  "target_btc": 0.002336,
+  "gap_usd": 379.36,
   "account_matches": false
  },
- "total_interest_usdt": 1.9707,
- "interest_watermark_ms": 1795273200000,
+ "total_interest_usdt": 1.9713,
+ "interest_watermark_ms": 1795276800000,
  "reconstruction_ok": true,
  "open": {
   "side": "SHORT",
@@ -8858,9 +8858,9 @@
   "first_entry_px": 77727.22,
   "opened": "2026-11-01 20:20 UTC",
   "fees_usdt": 0.31,
-  "interest_usdt": 0.2714,
-  "unrealized_usd": 69.05,
-  "unrealized_pct_equity": 20.86
+  "interest_usdt": 0.2712,
+  "unrealized_usd": 71.11,
+  "unrealized_pct_equity": 21.35
  },
  "recent_closed": [
   {
@@ -8882,7 +8882,7 @@
    "closed": "2026-10-28 06:20 UTC",
    "max_qty": 0.00407,
    "fees_usdt": 0.65,
-   "interest_usdt": 0.0277,
+   "interest_usdt": 0.0276,
    "realized_usd": -4.2,
    "first_entry_px": 80100.4,
    "avg_entry_px": 80100.4,
