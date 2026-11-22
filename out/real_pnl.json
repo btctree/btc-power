@@ -1,6 +1,6 @@
 {
- "generated": "2026-11-22 11:05 UTC",
- "price": 60901.61,
+ "generated": "2026-11-22 12:05 UTC",
+ "price": 61125.02,
  "equity_usdt": 335.6,
  "baseline": {
   "ts": "2026-08-12 19:25 UTC",
@@ -36,16 +36,8 @@
    "eq": 305.85
   },
   {
-   "t": "2026-08-24 00:05 UTC",
-   "eq": 306.15
-  },
-  {
    "t": "2026-08-24 05:05 UTC",
    "eq": 304.32
-  },
-  {
-   "t": "2026-08-24 11:05 UTC",
-   "eq": 306.02
   },
   {
    "t": "2026-08-24 12:05 UTC",
@@ -8697,6 +8689,11 @@
    "t": "2026-11-22 11:05 UTC",
    "eq": 335.6,
    "ms": 1795345516645
+  },
+  {
+   "t": "2026-11-22 12:05 UTC",
+   "eq": 335.6,
+   "ms": 1795349116668
   }
  ],
  "margin_level": 999.0,
@@ -8717,9 +8714,9 @@
   "stop": 58989.1,
   "as_of": "2026-11-21"
  },
- "bnb_px": 552.5,
+ "bnb_px": 553.48,
  "btc_net_asof": {
-  "t": 1795345521040,
+  "t": 1795349121096,
   "net": 0.0
  },
  "balance_adjustments": [
@@ -8742,7 +8739,7 @@
   "entry_price": 58951.51,
   "entry_date": "2026-11-20",
   "as_of": "2026-11-21",
-  "target_btc": 0.004243,
+  "target_btc": 0.004228,
   "gap_usd": 258.41,
   "account_matches": false
  },
@@ -8761,7 +8758,7 @@
    "eq_open": 262.18,
    "max_qty": 0.004,
    "fees_usdt": 0.55,
-   "interest_usdt": 0.2832,
+   "interest_usdt": 0.2837,
    "realized_usd": 73.7,
    "first_entry_px": 77727.22,
    "avg_entry_px": 77727.22,
@@ -8793,7 +8790,7 @@
    "eq_open": 267.88,
    "max_qty": 0.00407,
    "fees_usdt": 0.65,
-   "interest_usdt": 0.0279,
+   "interest_usdt": 0.028,
    "realized_usd": -4.2,
    "first_entry_px": 80100.4,
    "avg_entry_px": 80100.4,
@@ -8841,7 +8838,7 @@
    "eq_open": 273.21,
    "max_qty": 0.01176,
    "fees_usdt": 1.96,
-   "interest_usdt": 0.0027,
+   "interest_usdt": 0.0028,
    "realized_usd": -1.48,
    "first_entry_px": 82599.99,
    "avg_entry_px": 82599.99,
@@ -8919,8 +8916,8 @@
  "net_flows_usd": 0,
  "flows_ok": true,
  "flows_valued": true,
- "flows_checked_ms": 1795345520427,
+ "flows_checked_ms": 1795349120436,
  "pnl_since_baseline_usd": 43.4,
  "twr_since_baseline": 1.148528,
- "perf_as_of": "2026-11-22 11:05 UTC"
+ "perf_as_of": "2026-11-22 12:05 UTC"
 }
