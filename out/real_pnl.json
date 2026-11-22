@@ -1,7 +1,7 @@
 {
- "generated": "2026-11-22 06:05 UTC",
- "price": 59119.78,
- "equity_usdt": 336.02,
+ "generated": "2026-11-22 07:05 UTC",
+ "price": 59122.92,
+ "equity_usdt": 336.01,
  "baseline": {
   "ts": "2026-08-12 19:25 UTC",
   "equity": 292.2
@@ -42,10 +42,6 @@
   {
    "t": "2026-08-24 05:05 UTC",
    "eq": 304.32
-  },
-  {
-   "t": "2026-08-24 06:05 UTC",
-   "eq": 304.66
   },
   {
    "t": "2026-08-24 07:05 UTC",
@@ -8692,16 +8688,21 @@
    "t": "2026-11-22 06:05 UTC",
    "eq": 336.02,
    "ms": 1795327516744
+  },
+  {
+   "t": "2026-11-22 07:05 UTC",
+   "eq": 336.01,
+   "ms": 1795331116647
   }
  ],
- "margin_level": 2.41971973,
+ "margin_level": 2.41916009,
  "bnb_fee_note": "BNB-paid fees valued at current BNB price (approx.)",
  "account_btc": -0.004,
  "borrowed": {
   "btc": 0.004,
   "usdt": 0.0,
-  "bnb": 0.00051215,
-  "total_usdt_value": 236.76
+  "bnb": 0.0005132,
+  "total_usdt_value": 236.77
  },
  "trading_frozen": true,
  "maxb_frozen": true,
@@ -8709,12 +8710,12 @@
  "m1": {
   "signal": "SHORT",
   "entry": 77991.89,
-  "stop": 61822.83,
-  "as_of": "2026-11-20"
+  "stop": 58989.1,
+  "as_of": "2026-11-21"
  },
- "bnb_px": 540.28,
+ "bnb_px": 539.18,
  "btc_net_asof": {
-  "t": 1795327521108,
+  "t": 1795331121095,
   "net": -0.004
  },
  "balance_adjustments": [
@@ -8733,8 +8734,8 @@
   "gap_usd": 495.22,
   "account_matches": false
  },
- "total_interest_usdt": 1.9797,
- "interest_watermark_ms": 1795327200000,
+ "total_interest_usdt": 1.9803,
+ "interest_watermark_ms": 1795330800000,
  "reconstruction_ok": true,
  "open": {
   "side": "SHORT",
@@ -8745,8 +8746,8 @@
   "opened": "2026-11-01 20:20 UTC",
   "fees_usdt": 0.31,
   "interest_usdt": 0.2763,
-  "unrealized_usd": 74.12,
-  "unrealized_pct_equity": 22.06,
+  "unrealized_usd": 74.11,
+  "unrealized_pct_equity": 22.05,
   "eq_open": 262.18
  },
  "ledger_since": "2026-08-12 19:25 UTC",
@@ -8902,8 +8903,8 @@
  "net_flows_usd": 0,
  "flows_ok": true,
  "flows_valued": true,
- "flows_checked_ms": 1795327520452,
- "pnl_since_baseline_usd": 43.82,
- "twr_since_baseline": 1.149966,
- "perf_as_of": "2026-11-22 06:05 UTC"
+ "flows_checked_ms": 1795331120479,
+ "pnl_since_baseline_usd": 43.81,
+ "twr_since_baseline": 1.149932,
+ "perf_as_of": "2026-11-22 07:05 UTC"
 }
