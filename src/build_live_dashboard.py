@@ -288,28 +288,47 @@ $('tradelist').innerHTML=D.recent_trades.map((t,k)=>{const c=t.direction==='LONG
 // ---- TRADES page: the real account's track record since inception (owner flattened + reset here).
 const fm=v=>(v<0?'−$':'+$')+Math.abs(v).toFixed(2);
 if(R&&R.baseline){
- const bl=R.baseline, now=R.equity_usdt, pnl=now-bl.equity, pct=bl.equity?pnl/bl.equity*100:0;
- $('tp_now').innerHTML=`$${f2(now)} <span class="${pnl>=0?'pos':'neg'}" style="font-size:16px">${fm(pnl)} (${pct>=0?'+':''}${pct.toFixed(2)}%)</span>`;
- $('tp_start').textContent='$'+f2(bl.equity)+' · '+bl.ts;
- $('tp_pnl').innerHTML=`<span class="${pnl>=0?'pos':'neg'}">${fm(pnl)}</span> <span class="mut">(${pct>=0?'+':''}${pct.toFixed(2)}% on starting equity)</span>`;
+ // Deposits/withdrawals are NOT profit (owner 2026-11-22): P&L = equity - start - net deposits,
+ // % = the tracker's time-weighted growth (flows removed). Older tracker -> plain difference.
+ const bl=R.baseline, now=R.equity_usdt, nf=+(R.net_flows_usd||0);
+ const FLW=Array.isArray(R.capital_flows)?R.capital_flows:[], hasF=FLW.length>0;
+ // a failed transfer read: the tracker publishes figures AS OF its last complete reading (or null);
+ // never fall back to a plain difference then — an unseen deposit would read as profit
+ const unk=R.flows_ok===false&&R.pnl_since_baseline_usd==null;
+ const pnl=R.pnl_since_baseline_usd!=null?+R.pnl_since_baseline_usd:(unk?null:now-bl.equity-nf);
+ const pct=pnl==null?null:(R.twr_since_baseline!=null?(+R.twr_since_baseline-1)*100:(bl.equity?pnl/bl.equity*100:0));
+ const asof=(R.flows_ok===false&&R.perf_as_of)?' as of '+R.perf_as_of:'';
+ const pl=(hasF?'time-weighted, deposits excluded':'on starting equity')+asof;
+ const pS=pnl==null?'<span class="mut">unavailable — transfer history unreadable</span>':`<span class="${pnl>=0?'pos':'neg'}">${fm(pnl)}</span> <span class="mut">(${pct>=0?'+':''}${pct.toFixed(2)}% ${pl})</span>`;
+ $('tp_now').innerHTML=`$${f2(now)} `+(pnl==null?'':`<span class="${pnl>=0?'pos':'neg'}" style="font-size:16px">${fm(pnl)} (${pct>=0?'+':''}${pct.toFixed(2)}%)</span>`);
+ $('tp_start').textContent='$'+f2(bl.equity)+' · '+bl.ts+(hasF?' · net deposits '+(nf<0?'−$':'+$')+f2(Math.abs(nf)):'');
+ $('tp_pnl').innerHTML=pS;
  const since=(R.recent_closed||[]).filter(t=>t.closed>=bl.ts);
  const rz=since.reduce((a,t)=>a+t.realized_usd,0), fz=since.reduce((a,t)=>a+t.fees_usdt,0);
  $('tp_realized').innerHTML=`<span class="${rz>=0?'pos':'neg'}">${fm(rz)}</span> over ${since.length} closed · $${fz.toFixed(2)} fees${R.total_interest_usdt!=null?` · $${R.total_interest_usdt.toFixed(2)} interest since start`:''}`;
  const o=R.open;
  $('tp_open').innerHTML=o?`<span style="color:${o.side==='LONG'?'var(--grn)':'var(--red)'}">${o.side} ${o.qty} BTC</span>`+(o.unrealized_usd!=null?` <span class="${o.unrealized_usd>=0?'pos':'neg'}">${fm(o.unrealized_usd)}</span>`:''):'<span class="mut">FLAT</span>';
  $('tp_arm').innerHTML=R.trading_frozen?'<span class="amb">⏸ FROZEN — not following the model</span>':'<span class="pos">● live — follows the model hourly</span>';
- $('tp_note').textContent='Equity marked hourly from the live account (positions valued at market). Snapshot '+(R.generated||'—')+'.';
- const H=R.equity_history||[];
+ $('tp_note').textContent='Equity marked from the live account (positions valued at market; hourly for 90 days, then each day\'s low, high and last reading). Snapshot '+(R.generated||'—')+'.'
+   +(hasF?' The chart line is equity MINUS net deposits, so money moved in or out never shows as a gain or loss.':'')
+   +(R.flows_ok===false?' ⚠ The transfer history could not be read on the last update — a very recent deposit may be missing.':'');
+ // points placed by TIME (older days are thinned, so index spacing would distort the axis)
+ const H=(R.equity_history||[]).map(p=>({t:p.ms!=null?+p.ms:Date.parse(String(p.t).replace(' UTC','Z').replace(' ','T')),eq:+p.eq}))
+   .filter(p=>isFinite(p.t)&&isFinite(p.eq)).sort((a,b)=>a.t-b.t);
+ const FL=FLW.filter(f=>f.usd!=null).map(f=>({t:+f.ms,a:(+f.dir)*(+f.usd)}));
+ const cumF=t=>FL.reduce((s,f)=>s+(f.t<=t?f.a:0),0);
  if(H.length>1){const cv2=$('acctchart'),dpr=window.devicePixelRatio||1,W2=cv2.clientWidth||300,H2=140;
   cv2.width=W2*dpr;cv2.height=H2*dpr;const x2=cv2.getContext('2d');x2.setTransform(dpr,0,0,dpr,0,0);
+  H.forEach(p=>{p.eq=p.eq-cumF(p.t);});        // money moved in/out taken out of the line
   const vs=H.map(p=>p.eq);let lo=Math.min(...vs,bl.equity),hi=Math.max(...vs,bl.equity);if(hi-lo<1){hi+=1;lo-=1;}
-  const X=i=>34+(W2-40)*i/(H.length-1),Y=v=>H2-16-(H2-28)*(v-lo)/(hi-lo);
+  const T0=H[0].t,T1=H[H.length-1].t;
+  const X=i=>34+(W2-40)*(H[i].t-T0)/((T1-T0)||1),Y=v=>H2-16-(H2-28)*(v-lo)/(hi-lo);
   x2.strokeStyle='#1c2433';x2.fillStyle='#6b7787';x2.font='9px sans-serif';
   [lo,(lo+hi)/2,hi].forEach(v=>{const y=Y(v);x2.beginPath();x2.moveTo(34,y);x2.lineTo(W2-6,y);x2.stroke();x2.fillText('$'+Math.round(v),2,y+3);});
   x2.strokeStyle='#ffb84d';x2.setLineDash([3,3]);const by=Y(bl.equity);x2.beginPath();x2.moveTo(34,by);x2.lineTo(W2-6,by);x2.stroke();x2.setLineDash([]);
   x2.strokeStyle=vs[vs.length-1]>=bl.equity?'#2bd576':'#ff5d5d';x2.lineWidth=1.8;x2.beginPath();
   H.forEach((p,i)=>{i?x2.lineTo(X(i),Y(p.eq)):x2.moveTo(X(i),Y(p.eq));});x2.stroke();
-  x2.fillStyle='#6b7787';x2.fillText(H[0].t.slice(0,10),34,H2-3);x2.fillText(H[H.length-1].t.slice(0,10),W2-70,H2-3);}
+  x2.fillStyle='#6b7787';x2.fillText(new Date(T0).toISOString().slice(0,10),34,H2-3);x2.fillText(new Date(T1).toISOString().slice(0,10),W2-70,H2-3);}
 }else{const na=$('noacct');if(na)na.style.display='';const tc=document.querySelector('#p-acct .card.feat');if(tc)tc.style.display='none';}
 // real closed positions from actual fills (fees deducted) — shown only when account data is present
 if(R&&R.recent_closed&&R.recent_closed.length){$('realcard').style.display='';
