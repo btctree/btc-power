@@ -1,6 +1,6 @@
 {
- "generated": "2026-11-27 21:05 UTC",
- "price": 59776.7,
+ "generated": "2026-11-27 22:05 UTC",
+ "price": 59757.32,
  "equity_usdt": 335.6,
  "baseline": {
   "ts": "2026-08-12 19:25 UTC",
@@ -102,10 +102,6 @@
   {
    "t": "2026-08-29 20:05 UTC",
    "eq": 305.23
-  },
-  {
-   "t": "2026-08-29 21:05 UTC",
-   "eq": 304.48
   },
   {
    "t": "2026-08-29 22:05 UTC",
@@ -8887,6 +8883,11 @@
    "t": "2026-11-27 21:05 UTC",
    "eq": 335.6,
    "ms": 1795813516949
+  },
+  {
+   "t": "2026-11-27 22:05 UTC",
+   "eq": 335.6,
+   "ms": 1795817117182
   }
  ],
  "margin_level": 999.0,
@@ -8907,9 +8908,9 @@
   "stop": 0.0,
   "as_of": "2026-11-26"
  },
- "bnb_px": 553.43,
+ "bnb_px": 552.17,
  "btc_net_asof": {
-  "t": 1795813521288,
+  "t": 1795817121435,
   "net": 0.0
  },
  "balance_adjustments": [
@@ -8932,7 +8933,7 @@
   "entry_price": 58951.51,
   "entry_date": "2026-11-20",
   "as_of": "2026-11-26",
-  "target_btc": 0.008028,
+  "target_btc": 0.008031,
   "gap_usd": 479.9,
   "account_matches": false
  },
@@ -8951,7 +8952,7 @@
    "eq_open": 262.18,
    "max_qty": 0.004,
    "fees_usdt": 0.55,
-   "interest_usdt": 0.2836,
+   "interest_usdt": 0.283,
    "realized_usd": 73.7,
    "first_entry_px": 77727.22,
    "avg_entry_px": 77727.22,
@@ -8983,7 +8984,7 @@
    "eq_open": 267.88,
    "max_qty": 0.00407,
    "fees_usdt": 0.65,
-   "interest_usdt": 0.028,
+   "interest_usdt": 0.0279,
    "realized_usd": -4.2,
    "first_entry_px": 80100.4,
    "avg_entry_px": 80100.4,
@@ -9031,7 +9032,7 @@
    "eq_open": 273.21,
    "max_qty": 0.01176,
    "fees_usdt": 1.96,
-   "interest_usdt": 0.0028,
+   "interest_usdt": 0.0027,
    "realized_usd": -1.48,
    "first_entry_px": 82599.99,
    "avg_entry_px": 82599.99,
@@ -9109,8 +9110,8 @@
  "net_flows_usd": 0,
  "flows_ok": true,
  "flows_valued": true,
- "flows_checked_ms": 1795813520661,
+ "flows_checked_ms": 1795817120884,
  "pnl_since_baseline_usd": 43.4,
  "twr_since_baseline": 1.148528,
- "perf_as_of": "2026-11-27 21:05 UTC"
+ "perf_as_of": "2026-11-27 22:05 UTC"
 }
