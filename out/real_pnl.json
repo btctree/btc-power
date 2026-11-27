@@ -1,6 +1,6 @@
 {
- "generated": "2026-11-27 07:05 UTC",
- "price": 61766.99,
+ "generated": "2026-11-27 08:05 UTC",
+ "price": 61882.6,
  "equity_usdt": 335.6,
  "baseline": {
   "ts": "2026-08-12 19:25 UTC",
@@ -98,10 +98,6 @@
   {
    "t": "2026-08-29 00:05 UTC",
    "eq": 303.42
-  },
-  {
-   "t": "2026-08-29 07:05 UTC",
-   "eq": 302.29
   },
   {
    "t": "2026-08-29 08:05 UTC",
@@ -8869,6 +8865,11 @@
    "t": "2026-11-27 07:05 UTC",
    "eq": 335.6,
    "ms": 1795763116842
+  },
+  {
+   "t": "2026-11-27 08:05 UTC",
+   "eq": 335.6,
+   "ms": 1795766718860
   }
  ],
  "margin_level": 999.0,
@@ -8889,9 +8890,9 @@
   "stop": 0.0,
   "as_of": "2026-11-25"
  },
- "bnb_px": 566.34,
+ "bnb_px": 566.17,
  "btc_net_asof": {
-  "t": 1795763121188,
+  "t": 1795766723134,
   "net": 0.0
  },
  "balance_adjustments": [
@@ -8914,7 +8915,7 @@
   "entry_price": 58951.51,
   "entry_date": "2026-11-20",
   "as_of": "2026-11-26",
-  "target_btc": 0.00777,
+  "target_btc": 0.007755,
   "gap_usd": 479.9,
   "account_matches": false
  },
@@ -9091,8 +9092,8 @@
  "net_flows_usd": 0,
  "flows_ok": true,
  "flows_valued": true,
- "flows_checked_ms": 1795763120578,
+ "flows_checked_ms": 1795766722543,
  "pnl_since_baseline_usd": 43.4,
  "twr_since_baseline": 1.148528,
- "perf_as_of": "2026-11-27 07:05 UTC"
+ "perf_as_of": "2026-11-27 08:05 UTC"
 }
